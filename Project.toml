@@ -1,0 +1,4 @@
+name = "BioMotifInference"
+uuid = "23206ec3-a6aa-4a79-a7c0-9e85de80e56b"
+authors = ["Michael Mattocks <mike.mattocks@utoronto.ca>"]
+version = "0.1.0"
