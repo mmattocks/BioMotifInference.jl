@@ -46,7 +46,7 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
                                eff_iterates::Integer,
                                desc::AbstractString="Nested Sampling::",
                                color::Symbol=:green,
-                               output::IO=stderr,
+                               output::IO=stdout,
                                offset::Int=0,
                                start_it::Int=1,
                                no_displayed_srcs::Integer=0) where T
@@ -90,7 +90,7 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
 end
 
 ProgressNS(naive::AbstractFloat, interval::Real, workers::Vector{Integer}, dt::Real=0.1, desc::AbstractString="Nested Sampling::",
-         color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, eff_iterates=250) = 
+         color::Symbol=:green, output::IO=stdout, offset::Integer=0, start_it::Integer=1, eff_iterates=250) = 
             ProgressNS{typeof(interval)}(naive, interval, workers, dt=dt, eff_iterates=eff_iterates, desc=desc, color=color, output=output, offset=offset, start_it=start_it)
 
 ProgressNS(naive::AbstractFloat, interval::Real, workers::Vector{Integer}, desc::AbstractString, offset::Integer=0, start_it::Integer=1; eff_iterates=250, no_displayed_srcs=1) = ProgressNS{typeof(interval)}(naive, interval, workers, desc=desc, offset=offset, start_it=start_it, eff_iterates=eff_iterates, no_displayed_srcs=no_displayed_srcs)

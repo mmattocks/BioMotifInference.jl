@@ -87,10 +87,9 @@ end
 
 function uni_wvec_params(wvec) #assign a single unicode char and color symbol for the most informational position in a position weight vector
     wvec.+=10^-99
-    wvec = [x/sum(wvec) for x in wvec]
-    infscore=(2.0 + sum([x*log(2,x) for x in wvec]))
-    infvec = [x*infscore for x in wvec]
-    val,idx=findmax(infvec)
+    infoscore=(2.0 + sum([x*log(2,x) for x in wvec]))
+    infovec = [x*infoscore for x in wvec]
+    val,idx=findmax(infovec)
     return char,color=get_char_by_thresh(idx,val)
 end
                 function get_char_by_thresh(idx,val)
