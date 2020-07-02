@@ -14,7 +14,7 @@ function consolidate_srcs(con_idxs::Vector{Vector{Integer}}, sources::Vector{Tup
         end
     end
 
-    return fit_mix(ICA_PWM_model("consolidate", new_sources, informed_sources, source_length_limits, new_mix, -Inf, [""]), observations, obs_lengths, bg_scores, consrc)
+    return fit_mix(ICA_PWM_Model("consolidate", new_sources, informed_sources, source_length_limits, new_mix, -Inf, [""]), observations, obs_lengths, bg_scores, consrc)
 end
 
 function consolidate_check(sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}; thresh=.035)

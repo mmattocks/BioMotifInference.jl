@@ -30,8 +30,8 @@ xpixels_per_position = 20
 fontsize1=60
 fontsize2=40
 
-#function to convert ICA_PWM_model sources lists to PWM sequence logo diagrams
-function logo_from_model(model::ICA_PWM_model,svg_output::String;freq_sort::Bool=false)
+#function to convert ICA_PWM_Model sources lists to PWM sequence logo diagrams
+function logo_from_model(model::ICA_PWM_Model,svg_output::String;freq_sort::Bool=false)
     source_tups = Vector{Tuple{AbstractFloat, Integer, Matrix{AbstractFloat}}}() #(%of sequences w/ source, prior index, weight matrix)
     mix = model.mix_matrix #o x s
     for (prior, source) in enumerate(model.sources)

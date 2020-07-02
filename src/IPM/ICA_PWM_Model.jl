@@ -1,4 +1,9 @@
-struct ICA_PWM_model #Independent component analysis position weight matrix model
+struct Model_Record #record struct to associate a log_Li with a saved, calculated model
+    path::String
+    log_Li::AbstractFloat
+end
+
+struct ICA_PWM_Model #Independent component analysis position weight matrix model
     name::String #designator for saving model to posterior
     sources::Vector{Tuple{Matrix{AbstractFloat},Integer}} #vector of PWM signal sources (LOG PROBABILITY!!!) tupled with an index denoting the position of the first PWM base on the prior matrix- allows us to permute length and redraw from the appropriate prior position
     informed_sources::Integer #number of sources with informative priors- these are not subject to frequency sorting in model mergers
@@ -8,8 +13,8 @@ struct ICA_PWM_model #Independent component analysis position weight matrix mode
     flags::Vector{String} #optional flags for search patterns
 end
 
-#ICA_PWM_model FUNCTIONS
-ICA_PWM_model(name::String, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, observations::AbstractArray{Integer}, source_length_limits::UnitRange{Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
+#ICA_PWM_Model FUNCTIONS
+ICA_PWM_Model(name::String, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, observations::AbstractArray{Integer}, source_length_limits::UnitRange{Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
 
 #MODEL INIT
 function init_IPM(name::String, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, observations::AbstractArray{Integer}, source_length_limits::UnitRange{Integer})
@@ -20,7 +25,7 @@ function init_IPM(name::String, source_priors::Vector{Vector{Dirichlet{AbstractF
     mix=init_mix_matrix(mix_prior,O,S)
     log_lh = IPM_likelihood(sources, observations, obs_lengths, bg_scores, mix)
 
-   return ICA_PWM_model(name, sources, size(mix_prior[1],2), source_length_limits, mix, log_lh, ["init"])
+   return ICA_PWM_Model(name, sources, size(mix_prior[1],2), source_length_limits, mix, log_lh, ["init"])
 end
 
                 #init_IPM SUBFUNCS

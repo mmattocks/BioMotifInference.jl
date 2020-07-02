@@ -1,6 +1,6 @@
 @info "Loading test packages..."
 
-using nnlearn, BGHMM, HMMBase, BioSequences, Distributions, Distributed, Random, Serialization, Test
+using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp
 
 @info "Beginning tests..."
@@ -315,7 +315,7 @@ end
     obs=Array(transpose(coded_seqs))
     obsl=[findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]]
 
-    test_model = nnlearn.ICA_PWM_model("test", source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
+    test_model = nnlearn.ICA_PWM_Model("test", source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
 
     duplicate_sources=[(source_pwm,1) for i in 1:3]
     cons_check, cons_idxs = nnlearn.consolidate_check(duplicate_sources)
@@ -352,7 +352,7 @@ end
     @test "PM from test" in pm_model.flags
 
     badmix_lh=nnlearn.IPM_likelihood(test_model.sources,obs,obsl, bg_scores, trues(2,3))
-    badmix=nnlearn.ICA_PWM_model("badmix",test_model.sources, test_model.informed_sources, test_model.source_length_limits, trues(2,3), badmix_lh,[""])
+    badmix=nnlearn.ICA_PWM_Model("badmix",test_model.sources, test_model.informed_sources, test_model.source_length_limits, trues(2,3), badmix_lh,[""])
     psfm_model=nnlearn.perm_src_fit_mix(badmix, badmix.log_Li,obs, obsl, bg_scores, source_priors, 1000)
     @test psfm_model.log_Li > badmix.log_Li
     @test psfm_model.sources != badmix.sources
@@ -388,7 +388,7 @@ end
 
     erosion_lh=nnlearn.IPM_likelihood(erosion_sources,obs,obsl, bg_scores, eroded_mix)
 
-    erosion_model=nnlearn.ICA_PWM_model("erode", erosion_sources, test_model.informed_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
+    erosion_model=nnlearn.ICA_PWM_Model("erode", erosion_sources, test_model.informed_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
 
     eroded_model=nnlearn.erode_model(erosion_model, erosion_model.log_Li, obs, obsl, bg_scores, source_priors, 1000)
     @test eroded_model.log_Li > erosion_model.log_Li
@@ -490,10 +490,10 @@ end
     obs=Array(transpose(coded_seqs))
     position_start=1;offsets=[0,0]
 
-    ensemble = nnlearn.Bayes_IPM_ensemble(ensembledir, 150, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
-    ensemble = nnlearn.Bayes_IPM_ensemble(ensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits) #test resumption
+    ensemble = nnlearn.IPM_Ensemble(ensembledir, 150, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
+    ensemble = nnlearn.IPM_Ensemble(ensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits) #test resumption
 
-    sp_ensemble = nnlearn.Bayes_IPM_ensemble(spensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
+    sp_ensemble = nnlearn.IPM_Ensemble(spensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
 
     @test length(ensemble.models) == 200
     for model in ensemble.models
@@ -509,8 +509,8 @@ end
 
     @everywhere using nnlearn
 
-    dist_ensemble=nnlearn.Bayes_IPM_ensemble(assembler, distdir, 150, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
-    dist_ensemble=nnlearn.Bayes_IPM_ensemble(assembler, distdir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits) #test resumption
+    dist_ensemble=nnlearn.IPM_Ensemble(assembler, distdir, 150, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
+    dist_ensemble=nnlearn.IPM_Ensemble(assembler, distdir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits) #test resumption
 
     @test length(dist_ensemble.models) == 200
     for model in ensemble.models

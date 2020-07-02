@@ -1,7 +1,8 @@
-mutable struct Bayes_IPM_ensemble
+mutable struct IPM_Ensemble
 	path::String #ensemble models and popped-out posterior samples serialised here
 	models::Vector{Model_Record} #ensemble keeps paths to serialised models and their likelihood tuples rather than keeping the models in memory
 
+	contour::AbstractFloat#current log_Li[end]
 	log_Li::Vector{AbstractFloat} #likelihood of lowest-ranked model at iterate i
 	log_Xi::Vector{AbstractFloat} #amt of prior mass included in ensemble contour at Li
 	log_wi::Vector{AbstractFloat} #width of prior mass covered in this iterate
@@ -25,11 +26,11 @@ mutable struct Bayes_IPM_ensemble
 	naive_lh::AbstractFloat #the likelihood of the background model without any sources
 end
 
-####Bayes_IPM_ensemble FUNCTIONS
-Bayes_IPM_ensemble(path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::Matrix{AbstractFloat}, obs::Array{Integer}, source_length_limits; posterior_switch::Bool=true) =
-Bayes_IPM_ensemble(
+####IPM_Ensemble FUNCTIONS
+IPM_Ensemble(path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::Matrix{AbstractFloat}, obs::Array{Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(
 	path,
-	assemble_IPMs(path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits),
+	assemble_IPMs(path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
 	[-Inf], #L0 = 0
 	[0], #ie exp(0) = all of the prior is covered
 	[-Inf], #w0 = 0
@@ -46,10 +47,10 @@ Bayes_IPM_ensemble(
 	no_models+1,
 	IPM_likelihood(init_logPWM_sources(source_priors, source_length_limits), obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores, falses(size(obs)[2],length(source_priors))))
 
-Bayes_IPM_ensemble(worker_pool::Vector{Integer}, path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::Matrix{AbstractFloat}, obs::Array{Integer}, source_length_limits; posterior_switch::Bool=true) =
-Bayes_IPM_ensemble(
+IPM_Ensemble(worker_pool::Vector{Integer}, path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::Matrix{AbstractFloat}, obs::Array{Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(
 	path,
-	distributed_IPM_assembly(worker_pool, path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits),
+	distributed_IPM_assembly(worker_pool, path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
 	[-Inf], #L0 = 0
 	[0], #ie exp(0) = all of the prior is covered
 	[-Inf], #w0 = 0
@@ -75,7 +76,7 @@ function assemble_IPMs(path::String, no_models::Integer, source_priors::Vector{V
 	@showprogress 1 "Assembling IPM ensemble..." for model_no in 1:no_models
 		model_path = string(path,'/',model_no)
 		if !isfile(model_path)
-			model = ICA_PWM_model(string(model_no), source_priors, mix_prior, bg_scores, obs, source_length_limits)
+			model = ICA_PWM_Model(string(model_no), source_priors, mix_prior, bg_scores, obs, source_length_limits)
 			serialize(model_path, model) #save the model to the ensemble directory
 			push!(ensemble_records, Model_Record(model_path,model.log_Li))
 		else #interrupted assembly pick up from where we left off
@@ -84,7 +85,7 @@ function assemble_IPMs(path::String, no_models::Integer, source_priors::Vector{V
 		end
 	end
 
-	return ensemble_records
+	return ensemble_records, minimum([record.log_Li for record in ensemble_records])
 end
 
 function distributed_IPM_assembly(worker_pool::Vector{Integer}, path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, obs::AbstractArray{Integer}, source_length_limits::UnitRange{Integer})
@@ -93,7 +94,7 @@ function distributed_IPM_assembly(worker_pool::Vector{Integer}, path::String, no
 
 	@assert size(obs)[2]==size(bg_scores)[2]
 
-    model_chan= RemoteChannel(()->Channel{ICA_PWM_model}(length(worker_pool)))
+    model_chan= RemoteChannel(()->Channel{ICA_PWM_Model}(length(worker_pool)))
     job_chan = RemoteChannel(()->Channel{Union{Tuple,Nothing}}(1))
 	put!(job_chan,(source_priors, mix_prior, bg_scores, obs, source_length_limits))
 	
@@ -108,7 +109,7 @@ function distributed_IPM_assembly(worker_pool::Vector{Integer}, path::String, no
 	while model_counter <= no_models
 		wait(model_chan)
 		candidate=take!(model_chan)
-		model = ICA_PWM_model(string(model_counter), candidate.sources, candidate.informed_sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.flags)
+		model = ICA_PWM_Model(string(model_counter), candidate.sources, candidate.informed_sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.flags)
 		model_path=string(path,'/',model_counter)
 		serialize(model_path,model)
 		push!(ensemble_records, Model_Record(model_path,model.log_Li))
@@ -118,7 +119,7 @@ function distributed_IPM_assembly(worker_pool::Vector{Integer}, path::String, no
 
 	take!(job_chan),put!(job_chan,nothing)
 
-	return ensemble_records
+	return ensemble_records, minimum([record.log_Li for record in ensemble_records])
 end
 				function check_assembly!(ensemble_records::Vector{Model_Record}, path::String, no_models::Integer, assembly_progress::Progress)
 					counter=1
@@ -140,7 +141,7 @@ end
 					wait(job_chan)
 					params=fetch(job_chan)
 					while isready(job_chan)
-						model=ICA_PWM_model(string(myid()),params...)
+						model=ICA_PWM_Model(string(myid()),params...)
 						put!(models_chan,model)
 					end
 				end

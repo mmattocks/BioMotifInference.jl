@@ -154,7 +154,7 @@ source_priors = nnlearn.assemble_source_priors(no_sources, prior_array, prior_wt
 @info "Assembling ensemble..."
 path=randstring()
 isfile(string(path,'/',"ens")) ? (ens = deserialize(string(path,'/',"ens"))) :
-    (ens = nnlearn.Bayes_IPM_ensemble(path, ensemble_size, source_priors, (falses(0,0), mixing_prior), bg_lhs, obs, source_length_range))
+    (ens = nnlearn.IPM_Ensemble(path, ensemble_size, source_priors, (falses(0,0), mixing_prior), bg_lhs, obs, source_length_range))
 
 
 job_set_thresh=[-Inf,ens.naive_lh]

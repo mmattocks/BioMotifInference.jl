@@ -1,4 +1,4 @@
-function reset_ensemble(e::Bayes_IPM_ensemble)
+function reset_ensemble(e::IPM_Ensemble)
     new_e=deepcopy(e)
     for i in 1:length(e.models)
         if string(i) in [basename(record.path) for record in e.models]

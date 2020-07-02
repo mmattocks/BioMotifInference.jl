@@ -1,3 +1,19 @@
+struct Permute_Instruct
+    funcs::Vector{Function}
+    weights::Categorical
+    args::Dict{Function,Vector{Tuple{Symbol,Any}}}
+    model_limit::Integer
+    func_limit::Integer
+    Permute_Instruct(funcs,weights,args,model_limit,func_limit)=assert_permute_instruct(funcs,weights,model_limit,func_limit)&&new(funcs,weights,args,model_limit,func_limit)
+end
+
+function assert_permute_instruct(funcs,weights,model_limit,func_limit)
+    length(funcs)!=length(weights.p) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights as functions!"))
+    model_limit<1 && throw(ArgumentError("Permute_Instruct limit on models to permute must be positive Integer!"))
+    func_limit<1 && throw(ArgumentError("Permute_Instruct limit on fuction calls per model permtued must be positive Integer!"))
+end
+
+
 #permutation routine function- 
 #general logic: receive array of permutation parameters, until a model more likely than the least is found:
 #randomly select a model from the ensemble (the least likely having been removed by this point), then sample new models by permuting with each of hte given parameter sets until a model more likely than the current contour is found
@@ -12,47 +28,23 @@
 #						merge (iteratively copy a source + mix matrix row from another model in the ensemble until lh>contour or iterate						limit reached)
 #						-(iterates) for merpge params
 
-function run_permutation_routine(e::Bayes_IPM_ensemble, job_sets::Vector{Tuple{Vector{Tuple{String,Any}},Vector{AbstractFloat}}}, job_set_thresh::Vector{AbstractFloat}, job_limit::Integer, models_to_permute::Integer, contour::AbstractFloat)
-    start=time()
-    job_set,job_weights=job_sets[findlast(thresh->(contour>thresh),job_set_thresh)]
-    !(length(job_weights)==length(job_set)) && throw(ArgumentError("Job set and job weight vec must be same length!"))
 
-	for model = 1:models_to_permute
+function run_permutation_routine(e::IPM_Ensemble, instruction::Permute_Instruct)
+    start=time()
+	for model = 1:instruction.model_limit
 		m_record = rand(e.models)
         m = deserialize(m_record.path)
-
-        for job in 1:job_limit
-            mode, params = get_job(job_set,job_weights,m.flags,m.sources,m.source_length_limits)
-            if mode == "PS"
-                new_m=permute_source(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-            elseif mode == "PM"
-                new_m=permute_mix(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-            elseif mode == "PSFM"
-				new_m=perm_src_fit_mix(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-            elseif mode == "FM"
-                new_m=fit_mix(m, e.obs_array, e.obs_lengths, e.bg_scores)
-            elseif mode == "DM"
-                new_m=distance_merge(e.models, m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-            elseif mode == "SM"
-                new_m=similarity_merge(e.models, m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-			elseif mode == "RD"
-				new_m=random_decorrelate(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-			elseif mode == "RI"
-				new_m=reinit_src(m, contour,  e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, e.mix_prior, params...)
-            elseif mode == "EM"
-                new_m=erode_model(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                occursin("PSFM",new_m.flags[1]) && (mode="PSFM")
-            else
-                @error "Malformed permute mode code! Current supported: \"PS\", \"PM\", \"PSFM\", \"FM\", \"DM\", \"SM\",\"RD\", \"RI\", \"EM\""
-            end
-
+        for call in 1:instruction.func_limit
+            permute_func=instruction.funcs[rand(instruction.weights)]
+            permute_args=get_permfunc_args(permute_func,e,m,instruction.args)
+            new_m=permute_func(permute_args...)
 			dupecheck(new_m,m) && new_m.log_Li > contour && return new_m, (time()-start, job, model, m.log_Li, new_m.log_Li, mode)
 		end
 	end
 	return nothing, nothing
 end
 
-function worker_permute(e::Bayes_IPM_ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel, job_sets::Vector{Tuple{Vector{Tuple{String,Any}},Vector{AbstractFloat}}}, job_set_thresh::Vector{AbstractFloat}, job_limit::Integer, models_to_permute::Integer)
+function worker_permute(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel, job_sets::Vector{Tuple{Vector{Tuple{String,Any}},Vector{AbstractFloat}}}, job_set_thresh::Vector{AbstractFloat}, job_limit::Integer, models_to_permute::Integer)
 	persist=true
     id=myid()
     model_ctr=1
@@ -60,7 +52,6 @@ function worker_permute(e::Bayes_IPM_ensemble, job_chan::RemoteChannel, models_c
         wait(job_chan)
 
         start=time()
-
 		models = fetch(job_chan)
         models === nothing && (persist=false) && break
 		contour, ll_idx = findmin([model.log_Li for model in models])
@@ -106,6 +97,30 @@ function worker_permute(e::Bayes_IPM_ensemble, job_chan::RemoteChannel, models_c
 		end
 	end
 end
+
+                function get_permfunc_args(func::Function,e::IPM_Ensemble, m::ICA_PWM_Model, argdict::Dict{Function,Vector{Tuple{Symbol,Any}}})
+                    permute_args=[]
+                    argparts=Base.arg_decl_parts(methods(func).ms[1])
+                    argnames=[Symbol(argparts[2][n][1]) for n in 1:length(argparts[2])]
+                    for argname in argnames #assemble basic positional arguments from ensemble and model fields
+                        if argname in fieldnames(IPM_Ensemble)
+                            push!(permute_args,e.argname)
+                        elseif argname in fieldnames(ICA_PWM_Model)
+                            push!(permute_args,m.argname)
+                        else
+                            throw(ArgumentError("Not all positional arguments of $func are available in the ensemble, model, or argument dict!"))
+                        end
+                    end
+
+                    if func in keys(argdict) #add keyword arguments from supplied dict
+                        kw_argvec=argdict[func]
+                        for kw_arg in kw_argvec
+                            push!(permute_args,(;kw_arg[1]=>kw_arg[2])...)
+                        end
+                    end
+
+                    return permute_args
+                end
 
                 function get_job(job_set, job_weights, flags, srcs, src_lims)
                     job_dist=Categorical(job_weights)        
