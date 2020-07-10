@@ -5,19 +5,19 @@ end
 
 struct ICA_PWM_Model #Independent component analysis position weight matrix model
     name::String #designator for saving model to posterior
-    sources::Vector{Tuple{Matrix{AbstractFloat},Integer}} #vector of PWM signal sources (LOG PROBABILITY!!!) tupled with an index denoting the position of the first PWM base on the prior matrix- allows us to permute length and redraw from the appropriate prior position
+    sources::Vector{Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}} #vector of PWM signal sources (LOG PROBABILITY!!!) tupled with an index denoting the position of the first PWM base on the prior matrix- allows us to permute length and redraw from the appropriate prior position
     informed_sources::Integer #number of sources with informative priors- these are not subject to frequency sorting in model mergers
-    source_length_limits::UnitRange{Integer} #min/max source lengths for init and permutation
+    source_length_limits::UnitRange{<:Integer} #min/max source lengths for init and permutation
     mix_matrix::BitMatrix # obs x sources bool matrix
     log_Li::AbstractFloat
     flags::Vector{String} #optional flags for search patterns
 end
 
 #ICA_PWM_Model FUNCTIONS
-ICA_PWM_Model(name::String, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, observations::AbstractArray{Integer}, source_length_limits::UnitRange{Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
+ICA_PWM_Model(name::String, source_priors::AbstractVector{<:AbstractVector{Dirichlet{Float64}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
 
 #MODEL INIT
-function init_IPM(name::String, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, observations::AbstractArray{Integer}, source_length_limits::UnitRange{Integer})
+function init_IPM(name::String, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
     T,O = size(observations)
     S=length(source_priors)
     obs_lengths=[findfirst(iszero,observations[:,o])-1 for o in 1:size(observations)[2]]
@@ -29,8 +29,8 @@ function init_IPM(name::String, source_priors::Vector{Vector{Dirichlet{AbstractF
 end
 
                 #init_IPM SUBFUNCS
-                function init_logPWM_sources(prior_vector::Vector{Vector{Dirichlet{AbstractFloat}}}, source_length_limits::UnitRange{Integer})
-                    srcvec = Vector{Tuple{Matrix{AbstractFloat},Integer}}()
+                function init_logPWM_sources(prior_vector::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, source_length_limits::UnitRange{<:Integer})
+                    srcvec = Vector{Tuple{Matrix{Float64},Int64}}()
                     prior_coord = 1
                         for (p, prior) in enumerate(prior_vector)
                             min_PWM_length=source_length_limits[1]
@@ -49,7 +49,7 @@ end
                     return srcvec
                 end
 
-                function init_mix_matrix(mix_prior::Tuple{BitMatrix,AbstractFloat}, no_observations::Integer, no_sources::Integer)
+                function init_mix_matrix(mix_prior::Tuple{BitMatrix,<:AbstractFloat}, no_observations::Integer, no_sources::Integer)
                     inform,uninform=mix_prior
                     if size(inform,2) > 0
                         @assert size(inform,1)==no_observations && size(inform,2)<=no_sources "Bad informative mix prior dimensions!"
@@ -64,3 +64,36 @@ end
                     end
                     return mix_matrix
                 end
+
+function Base.show(io::IO, m::ICA_PWM_Model; nsrc::Integer=length(m.sources), progress=false)
+    nsrc == 0 && (nsrc=length(m.sources))
+    nsrc>length(m.sources) && (nsrc=length(m.sources))
+    nsrc==length(m.sources) ? (srcstr="All") : (srcstr="Top $nsrc")
+
+    printidxs,printsrcs,printfreqs=sort_sources(m,nsrc)
+
+    printstyled(io, "ICA PWM Model $(m.name) w/ logLi $(m.log_Li)\n", bold=true)
+    println(io, srcstr*" sources:")
+    for src in 1:nsrc
+        print(io, "S$(printidxs[src]), $(printfreqs[src]*100)%: ")
+        pwmstr_to_io(io, printsrcs[src])
+        println(io)
+    end
+
+    progress && return(nsrc+3)
+end
+
+function sort_sources(m, nsrc)
+    printidxs=Vector{Integer}()
+    printsrcs=Vector{Matrix{Float64}}()
+    printfreqs=Vector{Float64}()
+
+    freqs=vec(sum(m.mix_matrix,dims=1)); total=size(m.mix_matrix,1)
+    sortfreqs=sort(freqs,rev=true); sortidxs=sortperm(freqs)
+    for srcidx in 1:nsrc
+        push!(printidxs, sortidxs[srcidx])
+        push!(printsrcs, m.sources[sortidxs[srcidx]][1])
+        push!(printfreqs, sortfreqs[srcidx]/total)
+    end
+    return printidxs,printsrcs,printfreqs
+end

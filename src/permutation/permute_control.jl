@@ -4,13 +4,14 @@ struct Permute_Instruct
     args::Dict{Function,Vector{Tuple{Symbol,Any}}}
     model_limit::Integer
     func_limit::Integer
-    Permute_Instruct(funcs,weights,args,model_limit,func_limit)=assert_permute_instruct(funcs,weights,model_limit,func_limit)&&new(funcs,weights,args,model_limit,func_limit)
+    Permute_Instruct(funcs,weights,model_limit,func_limit; args=Dict{Function,Vector{Tuple{Symbol,Any}}}())=assert_permute_instruct(funcs,weights,model_limit,func_limit) && new(funcs,Categorical(weights),args,model_limit,func_limit)
 end
 
 function assert_permute_instruct(funcs,weights,model_limit,func_limit)
-    length(funcs)!=length(weights.p) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights as functions!"))
+    length(funcs)!=length(weights) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights as functions!"))
     model_limit<1 && throw(ArgumentError("Permute_Instruct limit on models to permute must be positive Integer!"))
     func_limit<1 && throw(ArgumentError("Permute_Instruct limit on fuction calls per model permtued must be positive Integer!"))
+    return true
 end
 
 
@@ -29,71 +30,52 @@ end
 #						-(iterates) for merpge params
 
 
-function run_permutation_routine(e::IPM_Ensemble, instruction::Permute_Instruct)
-    start=time()
+function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
+    call_report=Vector{Tuple{Function,Float64,Float64}}()
 	for model = 1:instruction.model_limit
 		m_record = rand(e.models)
         m = deserialize(m_record.path)
         for call in 1:instruction.func_limit
+            start=time()
             permute_func=instruction.funcs[rand(instruction.weights)]
             permute_args=get_permfunc_args(permute_func,e,m,instruction.args)
             new_m=permute_func(permute_args...)
-			dupecheck(new_m,m) && new_m.log_Li > contour && return new_m, (time()-start, job, model, m.log_Li, new_m.log_Li, mode)
+            push!(call_report,(permute_func,time()-start,new_m.log_Li - e.contour))
+
+			dupecheck(new_m,m) && new_m.log_Li > e.contour && return new_m, call_report
 		end
 	end
-	return nothing, nothing
+	return nothing, call_report
 end
 
-function worker_permute(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel, job_sets::Vector{Tuple{Vector{Tuple{String,Any}},Vector{AbstractFloat}}}, job_set_thresh::Vector{AbstractFloat}, job_limit::Integer, models_to_permute::Integer)
+function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel) #ensemble.models is partially updated on the worker to populate arguments for permute funcs
 	persist=true
     id=myid()
     model_ctr=1
-	while persist
+    while persist
         wait(job_chan)
-
         start=time()
-		models = fetch(job_chan)
-        models === nothing && (persist=false) && break
-		contour, ll_idx = findmin([model.log_Li for model in models])
-		deleteat!(models, ll_idx)
-        job_set,job_weights=job_sets[findlast(thresh->(contour>thresh),job_set_thresh)]
-        !(length(job_weights)==length(job_set)) && throw(ArgumentError,"Job set and job weight vec must be same length!")
+        e.models, e.contour, instruction = fetch(job_chan)
+        instruction === nothing && (persist=false) && break
 
-		for model=1:models_to_permute
+        call_report=Vector{Tuple{Function,Float64,Float64}}()
+        for model=1:instruction.model_limit
 			found::Bool=false
-			m_record = rand(models)
-			m = remotecall_fetch(deserialize,1,m_record.path)
-            for job in 1:job_limit
-                mode, params = get_job(job_set,job_weights,m.flags,m.sources,m.source_length_limits)
-                if mode == "PS"
-                    new_m=permute_source(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                elseif mode == "PM"
-                    new_m=permute_mix(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                elseif mode == "PSFM"
-                    new_m=perm_src_fit_mix(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                elseif mode == "FM"
-                    new_m=fit_mix(m, e.obs_array, e.obs_lengths, e.bg_scores)
-                elseif mode == "DM"
-                    new_m=distance_merge(e.models, m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                elseif mode == "SM"
-                    new_m=similarity_merge(e.models, m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                elseif mode == "RD"
-                    new_m=random_decorrelate(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                elseif mode == "RI"
-                    new_m=reinit_src(m, contour,  e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, e.mix_prior, params...)
-                elseif mode == "EM"
-                    new_m=erode_model(m, contour, e.obs_array, e.obs_lengths, e.bg_scores, e.source_priors, params...)
-                    occursin("PSFM",new_m.flags[1]) && (mode="PSFM")
-                else
-                    @error "Malformed permute mode code! Current supported: \"PS\", \"PM\", \"PSFM\", \"FM\", \"DM\", \"SM\",\"RD\", \"RI\", \"EM\""
-                end
-				dupecheck(new_m,m) && new_m.log_Li > contour && (put!(models_chan, (new_m ,id, (time()-start, job, model_ctr, m.log_Li, new_m.log_Li, mode))); found=true; model_ctr=1; break)
+			m_record = rand(e.models)
+            m = remotecall_fetch(deserialize,1,m_record.path)
+            for call in 1:instruction.func_limit
+                start=time()
+                permute_func=instruction.funcs[rand(instruction.weights)]
+                permute_args=get_permfunc_args(permute_func,e,m,instruction.args)
+                new_m=permute_func(permute_args...)
+                push!(call_report,(permute_func,time()-start,new_m.log_Li - e.contour))
+				dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; model_ctr=1; break)
 			end
             found==true && break;
             model_ctr+=1
             wait(job_chan)
-            fetch(job_chan)!=models && (break) #if the ensemble has changed during the search, update it
-			model==models_to_permute && (put!(models_chan,nothing);persist=false)#worker to put nothing on channel if it fails to find a model more likely than contour
+            fetch(job_chan)!=e.models && (break) #if the ensemble has changed during the search, update it
+			model==instruction.model_limit && (put!(models_chan, (nothing, id, call_report));persist=false)#worker to put nothing on channel if it fails to find a model more likely than contour
 		end
 	end
 end
@@ -101,14 +83,16 @@ end
                 function get_permfunc_args(func::Function,e::IPM_Ensemble, m::ICA_PWM_Model, argdict::Dict{Function,Vector{Tuple{Symbol,Any}}})
                     permute_args=[]
                     argparts=Base.arg_decl_parts(methods(func).ms[1])
-                    argnames=[Symbol(argparts[2][n][1]) for n in 1:length(argparts[2])]
+                    argnames=[Symbol(argparts[2][n][1]) for n in 2:length(argparts[2])]
                     for argname in argnames #assemble basic positional arguments from ensemble and model fields
-                        if argname in fieldnames(IPM_Ensemble)
-                            push!(permute_args,e.argname)
+                        if argname == Symbol('m')
+                            push!(permute_args,m)
+                        elseif argname in fieldnames(IPM_Ensemble)
+                            push!(permute_args,getfield(e,argname))
                         elseif argname in fieldnames(ICA_PWM_Model)
-                            push!(permute_args,m.argname)
+                            push!(permute_args,getfield(m,argname))
                         else
-                            throw(ArgumentError("Not all positional arguments of $func are available in the ensemble, model, or argument dict!"))
+                            throw(ArgumentError("Positional argument $argname of $func not available in the ensemble or model!"))
                         end
                     end
 
@@ -120,24 +104,6 @@ end
                     end
 
                     return permute_args
-                end
-
-                function get_job(job_set, job_weights, flags, srcs, src_lims)
-                    job_dist=Categorical(job_weights)        
-                    mode,params=job_set[rand(job_dist)]
-
-                    if ("nofit" in flags)
-                        while mode=="FM"
-                            mode, params =job_set[rand(job_dist)]
-                        end
-                    end
-        
-                    if mode=="EM" && !any([>(size(srcs[s][1],1), src_lims[1]) for s in 1:length(srcs)]) 
-                        while mode=="EM"
-                            mode,params=job_set[rand(job_dist)]
-                        end
-                    end
-                    return mode,params
                 end
 
                 function dupecheck(new_model, model)

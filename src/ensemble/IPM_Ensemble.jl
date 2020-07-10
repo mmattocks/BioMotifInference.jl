@@ -27,7 +27,7 @@ mutable struct IPM_Ensemble
 end
 
 ####IPM_Ensemble FUNCTIONS
-IPM_Ensemble(path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::Matrix{AbstractFloat}, obs::Array{Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
 IPM_Ensemble(
 	path,
 	assemble_IPMs(path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
@@ -47,7 +47,7 @@ IPM_Ensemble(
 	no_models+1,
 	IPM_likelihood(init_logPWM_sources(source_priors, source_length_limits), obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores, falses(size(obs)[2],length(source_priors))))
 
-IPM_Ensemble(worker_pool::Vector{Integer}, path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::Matrix{AbstractFloat}, obs::Array{Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(worker_pool::AbstractVector{<:Integer}, path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::Array{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
 IPM_Ensemble(
 	path,
 	distributed_IPM_assembly(worker_pool, path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
@@ -67,7 +67,7 @@ IPM_Ensemble(
 	no_models+1,
 	IPM_likelihood(init_logPWM_sources(source_priors, source_length_limits), obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores, falses(size(obs)[2],length(source_priors))))
 
-function assemble_IPMs(path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, obs::AbstractArray{Integer}, source_length_limits::UnitRange{Integer})
+function assemble_IPMs(path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
 	ensemble_records = Vector{Model_Record}()
 	!isdir(path) && mkpath(path)
 
@@ -88,7 +88,7 @@ function assemble_IPMs(path::String, no_models::Integer, source_priors::Vector{V
 	return ensemble_records, minimum([record.log_Li for record in ensemble_records])
 end
 
-function distributed_IPM_assembly(worker_pool::Vector{Integer}, path::String, no_models::Integer, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, mix_prior::Tuple{BitMatrix,AbstractFloat}, bg_scores::AbstractArray{AbstractFloat}, obs::AbstractArray{Integer}, source_length_limits::UnitRange{Integer})
+function distributed_IPM_assembly(worker_pool::Vector{Int64}, path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
 	ensemble_records = Vector{Model_Record}()
 	!isdir(path) && mkpath(path)
 
@@ -121,7 +121,7 @@ function distributed_IPM_assembly(worker_pool::Vector{Integer}, path::String, no
 
 	return ensemble_records, minimum([record.log_Li for record in ensemble_records])
 end
-				function check_assembly!(ensemble_records::Vector{Model_Record}, path::String, no_models::Integer, assembly_progress::Progress)
+				function check_assembly!(ensemble_records::AbstractVector{<:Model_Record}, path::String, no_models::Integer, assembly_progress::Progress)
 					counter=1
 					while counter <= no_models
 						model_path=string(path,'/',counter)
@@ -145,3 +145,15 @@ end
 						put!(models_chan,model)
 					end
 				end
+
+function Base.show(io::IO, e::IPM_Ensemble; nsrc=0, progress=false)
+	livec=[model.log_Li for model in e.models]
+	maxLH=maximum(livec)
+	printstyled(io, "ICA PWM Model Ensemble @ $(e.path)\n", bold=true)
+	msg = @sprintf "Contour: %3.3f MaxLH:%3.3f Max/Naive:%3.3f Info:%3.3f" e.contour maxLH (maxLH-e.naive_lh) e.Hi[end]
+	println(io, msg)
+	hist=UnicodePlots.histogram(livec, title="Ensemble Likelihood Distribution")
+	show(io, hist)
+	println()
+	progress && return(nrows(hist.graphics)+6)
+end

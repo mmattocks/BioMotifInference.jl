@@ -1,7 +1,7 @@
 
 ##BASIC UTILITY FUNCTIONS
 #SOURCE PERMUTATION
-function permute_source_weights(source::Tuple{Matrix{AbstractFloat},Integer}, shift_freq::AbstractFloat, PWM_shift_dist::Distributions.ContinuousUnivariateDistribution)
+function permute_source_weights(source::Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}, shift_freq::AbstractFloat, PWM_shift_dist::Distribution{Univariate,Continuous})
     dirty=false; source_length=size(source[1],1)
     new_source=deepcopy(source)
 
@@ -22,7 +22,7 @@ function permute_source_weights(source::Tuple{Matrix{AbstractFloat},Integer}, sh
     return new_source
 end
 
-                function wm_shift(pos_WM::Vector{AbstractFloat}, PWM_shift_dist::Distributions.ContinuousUnivariateDistribution)
+                function wm_shift(pos_WM::AbstractVector{<:AbstractFloat}, PWM_shift_dist::Distribution{Univariate,Continuous})
                     base_to_shift = rand(1:4) #pick a base to accumulate probability
                     permute_sign = rand(-1:2:1)
                     shift_size = rand(PWM_shift_dist)
@@ -51,7 +51,7 @@ end
 
 
 
-function permute_source_length(source::Tuple{Matrix{AbstractFloat},Integer}, prior::Vector{Dirichlet{AbstractFloat}}, length_limits::UnitRange{Integer}, permute_range::UnitRange{Integer}=1:3, uninformative::Dirichlet=Dirichlet([.25,.25,.25,.25]))
+function permute_source_length(source::Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}, prior::AbstractVector{<:Dirichlet{<:AbstractFloat}}, length_limits::UnitRange{<:Integer}, permute_range::UnitRange{<:Integer}=1:3, uninformative::Dirichlet=Dirichlet([.25,.25,.25,.25]))
     source_PWM, prior_idx = source
     source_length = size(source_PWM,1)
 
@@ -83,7 +83,7 @@ function permute_source_length(source::Tuple{Matrix{AbstractFloat},Integer}, pri
     return (source_PWM, prior_idx) #return a new source
 end
 
-                function get_length_params(source_length::Integer, length_limits::UnitRange{Integer}, permute_range::UnitRange{Integer})
+                function get_length_params(source_length::Integer, length_limits::UnitRange{<:Integer}, permute_range::UnitRange{<:Integer})
                     extendable = length_limits[end]-source_length
                     contractable =  source_length-length_limits[1]
 
@@ -102,7 +102,7 @@ end
                     return permute_sign, permute_length
                 end
 
-function erode_source(source::Tuple{Matrix{AbstractFloat},Integer},length_limits::UnitRange{Integer},info_thresh)
+function erode_source(source::Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer},length_limits::UnitRange{<:Integer},info_thresh)
     pwm,prior_idx=source
     infovec=get_pwm_info(pwm)
     start_idx,end_idx=get_erosion_idxs(infovec, info_thresh, length_limits)
@@ -110,7 +110,7 @@ function erode_source(source::Tuple{Matrix{AbstractFloat},Integer},length_limits
     return new_source=(pwm[start_idx:end_idx,:], prior_idx+start_idx-1)
 end
 
-    function get_pwm_info(pwm::Matrix{AbstractFloat}; logsw::Bool=true)
+    function get_pwm_info(pwm::AbstractMatrix{<:AbstractFloat}; logsw::Bool=true)
         wml=size(pwm,1)
         infovec=zeros(wml)
         for pos in 1:wml
@@ -123,7 +123,7 @@ end
         return infovec
     end
 
-    function get_erosion_idxs(infovec::Vector{AbstractFloat}, info_thresh::AbstractFloat, length_limits::UnitRange{Integer})
+    function get_erosion_idxs(infovec::AbstractVector{<:AbstractFloat}, info_thresh::AbstractFloat, length_limits::UnitRange{<:Integer})
         srcl=length(infovec)
         contractable =  srcl-length_limits[1]
         contractable <=0 && throw(DomainError(contractable, "erode_source passed a source at its lower length limit!"))

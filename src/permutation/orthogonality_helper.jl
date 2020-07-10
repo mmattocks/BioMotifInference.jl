@@ -1,6 +1,6 @@
 
 ##ORTHOGONALITY HELPER
-function consolidate_srcs(con_idxs::Vector{Vector{Integer}}, sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}, mix::BitMatrix, observations::Matrix{Integer}, obs_lengths::Vector{Integer}, bg_scores::Matrix{AbstractFloat}, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, informed_sources::Integer, source_length_limits::UnitRange)
+function consolidate_srcs(con_idxs::AbstractVector{<:AbstractVector{<:Integer}}, sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}, mix::BitMatrix, observations::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, informed_sources::Integer, source_length_limits::UnitRange)
     new_sources=deepcopy(sources);new_mix=deepcopy(mix)
     consrc=0
     for (s,convec) in enumerate(con_idxs)
@@ -14,10 +14,10 @@ function consolidate_srcs(con_idxs::Vector{Vector{Integer}}, sources::Vector{Tup
         end
     end
 
-    return fit_mix(ICA_PWM_Model("consolidate", new_sources, informed_sources, source_length_limits, new_mix, -Inf, [""]), observations, obs_lengths, bg_scores, consrc)
+    return fit_mix(ICA_PWM_Model("consolidate", new_sources, informed_sources, source_length_limits, new_mix, -Inf, [""]), observations, obs_lengths, bg_scores, exclude_src=consrc)
 end
 
-function consolidate_check(sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}; thresh=.035)
+function consolidate_check(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}; thresh=.035)
     pass=true
     con_idxs=Vector{Vector{Integer}}()
     for (s1,src1) in enumerate(sources)
