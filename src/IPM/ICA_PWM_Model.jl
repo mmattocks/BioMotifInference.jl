@@ -18,6 +18,7 @@ ICA_PWM_Model(name::String, source_priors::AbstractVector{<:AbstractVector{Diric
 
 #MODEL INIT
 function init_IPM(name::String, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
+    assert_obs_bg_compatibility(observations,bg_scores)
     T,O = size(observations)
     S=length(source_priors)
     obs_lengths=[findfirst(iszero,observations[:,o])-1 for o in 1:size(observations)[2]]
@@ -27,8 +28,14 @@ function init_IPM(name::String, source_priors::AbstractVector{<:AbstractVector{<
 
    return ICA_PWM_Model(name, sources, size(mix_prior[1],2), source_length_limits, mix, log_lh, ["init"])
 end
-
                 #init_IPM SUBFUNCS
+                function assert_obs_bg_compatibility(obs, bg_scores)
+                    T,O=size(obs)
+                    t,o=size(bg_scores)
+                    O!=o && throw(DomainError("Background scores and observations must have same number of observation columns!"))
+                    T!=t+1 && throw(DomainError("Background score array must have the same observation lengths as observations!"))
+                end
+
                 function init_logPWM_sources(prior_vector::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, source_length_limits::UnitRange{<:Integer})
                     srcvec = Vector{Tuple{Matrix{Float64},Int64}}()
                     prior_coord = 1
@@ -89,7 +96,7 @@ function sort_sources(m, nsrc)
     printfreqs=Vector{Float64}()
 
     freqs=vec(sum(m.mix_matrix,dims=1)); total=size(m.mix_matrix,1)
-    sortfreqs=sort(freqs,rev=true); sortidxs=sortperm(freqs)
+    sortfreqs=sort(freqs,rev=true); sortidxs=sortperm(freqs,rev=true)
     for srcidx in 1:nsrc
         push!(printidxs, sortidxs[srcidx])
         push!(printsrcs, m.sources[sortidxs[srcidx]][1])

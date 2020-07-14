@@ -10,13 +10,13 @@ mutable struct IPM_Ensemble
 	log_Zi::Vector{AbstractFloat} #ensemble evidence
 	Hi::Vector{AbstractFloat} #ensemble information
 
-	obs_array::Matrix{Integer} #observations
+	obs_array::Matrix{Integer} #observations Txo
 	obs_lengths::Vector{Integer}
 
 	source_priors::Vector{Vector{Dirichlet{AbstractFloat}}} #source pwm priors
 	mix_prior::Tuple{BitMatrix,AbstractFloat} #prior on %age of observations that any given source contributes to
 
-	bg_scores::Matrix{AbstractFloat} #precalculated background HMM scores
+	bg_scores::Matrix{AbstractFloat} #precalculated background HMM scores, same dims as obs
 
 	sample_posterior::Bool
 	retained_posterior_samples::Vector{Model_Record} #list of posterior sample records

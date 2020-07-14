@@ -14,6 +14,11 @@ function Worker_Monitor(wk_pool::Vector{<:Integer})
     return Worker_Monitor(idx, persist, last_seen)
 end
 
+function update_worker_monitor!(mon,wk,persist)
+    mon.persist[1,mon.idx[wk]]=persist
+    mon.last_seen[1,mon.idx[wk]]=time()
+end
+
 function Base.show(io::IO, mon::Worker_Monitor; progress=false)
     printstyled("Worker Diagnostics\n", bold=true)
     pers=heatmap(float.(mon.persist), colormap=persistcolor, title="Peristence",labels=false)
@@ -24,12 +29,7 @@ function Base.show(io::IO, mon::Worker_Monitor; progress=false)
     progress && return nrows(pers.graphics)+nrows(ls.graphics)+7
 end
 
-function persistcolor(z, zmin, zmax)
-    z==1. && return 154
-    z==0. && return 160
-end
-
-function update_worker_monitor!(mon,wk,persist)
-    mon.persist[1,mon.idx[wk]]=persist
-    mon.last_seen[1,mon.idx[wk]]=time()
-end
+                function persistcolor(z, zmin, zmax)
+                    z==1. && return 154
+                    z==0. && return 160
+                end

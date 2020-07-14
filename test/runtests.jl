@@ -2,7 +2,8 @@
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!
+import Distances: euclidean
 
 @info "Beginning tests..."
 
@@ -288,6 +289,88 @@ end
     @test basecache==unchangedcache!=changedcache==indepcache
 end
 
+@testset "Orthogonality helper" begin
+    bg_scores = log.(fill(.25, (17,3)))
+    obs=[BioSequences.LongSequence{DNAAlphabet{2}}("ATGATTACGATGATGCA")
+    BioSequences.LongSequence{DNAAlphabet{2}}("TCAGTTACGATGATCAG")
+    BioSequences.LongSequence{DNAAlphabet{2}}("TTACGCACAGATGTTAC")]
+    order_seqs = BioBackgroundModels.get_order_n_seqs(obs, 0)
+    coded_seqs = BioBackgroundModels.code_seqs(order_seqs)
+    obs=Array(transpose(coded_seqs))
+    obsl=[findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]]
+
+    src_ATG = [.7 .1 .1 .1
+    .1 .1 .1 .7
+    .1 .1 .7 .1]
+
+    src_CAG = [.1 .7 .1 .1
+    .7 .1 .1 .1
+    .1 .1 .7 .1]
+
+    src_TTAC = [.1 .1 .1 .7
+    .1 .1 .1 .7
+    .7 .1 .1 .1
+    .1 .7 .1 .1]
+
+    src_GCA = [.1 .1 .7 .1
+    .1 .7 .1 .1
+    .7 .1 .1 .1]
+
+    consolidate_one = [(log.(src_ATG),0),(log.(src_TTAC),0),(log.(src_ATG),0)]
+    cons_one_mix = BitMatrix([true true false
+                    true false true
+                    false true true])
+
+    consolidate_two = [(log.(src_ATG),0),(log.(src_ATG),0),(log.(src_ATG),0)]
+    cons_two_mix = BitMatrix([true false false
+                    false true false
+                    false false true])
+
+    distance_model = [(log.(src_TTAC),0),(log.(src_CAG),0),(log.(src_GCA),0)]
+
+    c1model = ICA_PWM_Model("c1", consolidate_one, 3, 3:4, cons_one_mix, IPM_likelihood(consolidate_one, obs, obsl, bg_scores, cons_one_mix),[""])
+    c2model = ICA_PWM_Model("c2", consolidate_two, 3, 3:4, cons_two_mix, IPM_likelihood(consolidate_two, obs, obsl, bg_scores, cons_two_mix),[""])
+    dmodel = ICA_PWM_Model("d", distance_model, 3, 3:4, trues(3,3), IPM_likelihood(distance_model, obs, obsl, bg_scores, trues(3,3)),[""])
+
+    dpath=randstring()
+    serialize(dpath, dmodel)
+    drec=Model_Record(dpath,dmodel.log_Li)
+
+    #check distance calculation
+    pwmtest_1=zeros(1,4);pwmtest_1[1]=1.
+    pwmtest_2=zeros(1,4);pwmtest_2[2]=1.
+    @test pwm_distance(log.(pwmtest_1),log.(pwmtest_2)) == euclidean(pwmtest_1,pwmtest_2) == 1.4142135623730951
+
+    #test consolidate check
+    @test consolidate_check(distance_model) == (true,Dict{Integer,Vector{Integer}}())
+    @test consolidate_check(consolidate_one) == (false, Dict{Integer,Vector{Integer}}(1=>[3]))
+    @test consolidate_check(consolidate_two) == (false, Dict{Integer,Vector{Integer}}(1=>[2,3], 2=>[3]))
+
+    #test overall consolidate function
+    _,con_idxs=consolidate_check(consolidate_one)
+    c1consmod=consolidate_srcs(con_idxs, c1model, obs, obsl, bg_scores, drec.log_Li, [drec])
+
+    @test consolidate_check(c1consmod.sources)[1]
+    @test c1consmod.log_Li > dmodel.log_Li
+    @test all(c1consmod.mix_matrix[:,1])
+    @test c1consmod.sources[1][1]==log.(src_ATG)
+    @test c1consmod.sources[3][1]!=log.(src_ATG)
+    @test c1consmod.flags==["consolidate from c1"]
+
+    _,con_idxs=consolidate_check(consolidate_two)
+    c2consmod=consolidate_srcs(con_idxs, c2model, obs, obsl, bg_scores, drec.log_Li, [drec])
+
+    @test consolidate_check(c2consmod.sources)[1]
+    @test c2consmod.log_Li > dmodel.log_Li
+    @test all(c2consmod.mix_matrix[:,1])
+    @test c2consmod.sources[1][1]==log.(src_ATG)
+    @test c2consmod.sources[2][1]!=log.(src_ATG)
+    @test c2consmod.sources[3][1]!=log.(src_ATG)
+    @test c2consmod.flags==["consolidate from c2"]
+
+    rm(dpath)
+end
+
 @testset "Model permutation functions" begin
     source_pwm = [.7 .1 .1 .1
     .1 .1 .1 .7
@@ -318,43 +401,21 @@ end
 
     test_model = ICA_PWM_Model("test", source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
 
-    duplicate_sources=[(source_pwm,1) for i in 1:3]
-    cons_check, cons_idxs = consolidate_check(duplicate_sources)
-    @test !cons_check
-    @test cons_idxs == [[2,3],[1,3],[1,2]]
-
-    mix=falses(10,3)
-    mix[1:2,1].=true
-    mix[9:10,2].=true
-
-    con_obs=hcat(obs,obs,obs,obs,obs)
-    con_obsl=[12 for i in 1:10]
-    con_bg=log.(fill(.5, (12,10)))
-
-    cons_model=consolidate_srcs(cons_idxs, duplicate_sources, mix, con_obs, con_obsl, con_bg, source_priors, test_model.informed_sources, src_length_limits)
-    @test cons_model.sources[1]==duplicate_sources[1]
-    @test cons_model.sources[2]!=duplicate_sources[2]
-    @test cons_model.sources[3]!=duplicate_sources[3]
-    @test cons_model.mix_matrix[:,1]==[true, true, false, false, false, false, false, false, true, true]
-    @test "FM from consolidate" in cons_model.flags
-    @test "nofit" in cons_model.flags
-
-
-    ps_model= permute_source(test_model, obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000,weight_shift_freq=.3,length_change_freq=.5)
+    ps_model= permute_source(test_model, Vector{Model_Record}(), obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000,weight_shift_freq=1.,length_change_freq=1.)
     @test ps_model.log_Li > test_model.log_Li
     @test ps_model.sources != test_model.sources
     @test ps_model.mix_matrix == test_model.mix_matrix
     @test "PS from test" in ps_model.flags
 
-    pm_model= permute_mix(test_model, obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
+    pm_model= permute_mix(test_model, Vector{Model_Record}(), obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
     @test pm_model.log_Li > test_model.log_Li
     @test pm_model.sources == test_model.sources
     @test pm_model.mix_matrix != test_model.mix_matrix
     @test "PM from test" in pm_model.flags
 
-    badmix_lh=IPM_likelihood(test_model.sources,obs,obsl, bg_scores, trues(2,3))
+    badmix_lh=IPM_likelihood(test_model.sources, obs,obsl, bg_scores, trues(2,3))
     badmix=ICA_PWM_Model("badmix",test_model.sources, test_model.informed_sources, test_model.source_length_limits, trues(2,3), badmix_lh,[""])
-    psfm_model=perm_src_fit_mix(badmix, obs, obsl, bg_scores, badmix.log_Li, source_priors,  iterates=1000)
+    psfm_model=perm_src_fit_mix(badmix, Vector{Model_Record}(),obs, obsl, bg_scores, badmix.log_Li, source_priors,  iterates=1000)
     @test psfm_model.log_Li > badmix.log_Li
     @test psfm_model.sources != badmix.sources
     @test psfm_model.mix_matrix != badmix.mix_matrix
@@ -367,17 +428,17 @@ end
     @test "FM from test" in fm_model.flags
     @test "nofit" in fm_model.flags
 
-    post_fm_psfm=perm_src_fit_mix(fm_model, obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
+    post_fm_psfm=perm_src_fit_mix(fm_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
     @test "PSFM from candidate" in post_fm_psfm.flags
     @test "nofit" in post_fm_psfm.flags
 
-    rd_model=random_decorrelate(test_model, obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
+    rd_model=random_decorrelate(test_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
     @test rd_model.log_Li > test_model.log_Li
     @test rd_model.sources != test_model.sources
     @test rd_model.mix_matrix != test_model.mix_matrix
     @test "RD from test" in rd_model.flags
 
-    rs_model=reinit_src(test_model, obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
+    rs_model=reinit_src(test_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
     @test rs_model.log_Li > test_model.log_Li
     @test rs_model.sources != test_model.sources
     @test rs_model.mix_matrix != test_model.mix_matrix
@@ -391,7 +452,7 @@ end
 
     erosion_model=ICA_PWM_Model("erode", erosion_sources, test_model.informed_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
 
-    eroded_model=erode_model(erosion_model, obs, obsl, bg_scores, erosion_model.log_Li, source_priors)
+    eroded_model=erode_model(erosion_model, Vector{Model_Record}(), obs, obsl, bg_scores, erosion_model.log_Li, source_priors)
     @test eroded_model.log_Li > erosion_model.log_Li
     @test eroded_model.sources != erosion_model.sources
     @test eroded_model.mix_matrix == erosion_model.mix_matrix
@@ -399,39 +460,35 @@ end
     @test eroded_model.sources[1]==erosion_model.sources[1]
     @test eroded_model.sources[2]==erosion_model.sources[2]
     @test eroded_model.sources[3]!=erosion_model.sources[3]
-    @test size(eroded_model.sources[3][1],1)==3
+    @test eroded_model.sources[3][1]==erosion_model.sources[3][1][2:4,:]
 
     path=randstring()
-    test_record = Model_Record(path, rs_model.log_Li)
-    serialize(path, rs_model)
+    println(path)
+    test_record = Model_Record(path, ps_model.log_Li)
+    serialize(path, ps_model)
 
-    dm_model=distance_merge(test_model, obs, obsl, bg_scores, test_model.log_Li,  [test_record], source_priors, iterates=1000)
+    dm_model=distance_merge(test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
     @test dm_model.log_Li > test_model.log_Li
     @test dm_model.sources != test_model.sources
-    @test dm_model.mix_matrix != test_model.mix_matrix
-    @test "FM from consolidate" in dm_model.flags
-    #@test "DM from test" in dm_model.flags
+    @test "DM from test" in dm_model.flags
 
-    sm_model=similarity_merge(test_model, obs, obsl, bg_scores, test_model.log_Li,[test_record], source_priors, iterates=1000)
+    sm_model=similarity_merge(test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
     @test sm_model.log_Li > test_model.log_Li
     @test sm_model.sources != test_model.sources
-    @test sm_model.mix_matrix != test_model.mix_matrix
-    #@test "SM from test" in sm_model.flags
+    @test "SM from test" in sm_model.flags
 
     testwk=addprocs(1)[1]
     @everywhere import BioMotifInference
 
-    ddm_model=remotecall_fetch(distance_merge, testwk, test_model, obs, obsl, bg_scores, test_model.log_Li, [test_record], source_priors, iterates=1000, remote=true)
+    ddm_model=remotecall_fetch(distance_merge, testwk, test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000, remote=true)
     @test ddm_model.log_Li > test_model.log_Li
     @test ddm_model.sources != test_model.sources
-    @test ddm_model.mix_matrix != test_model.mix_matrix
-    @test ("DM from test" in ddm_model.flags) || ("FM from consolidate" in ddm_model.flags)
+    @test ("DM from test" in ddm_model.flags)
 
-    dsm_model=remotecall_fetch(similarity_merge, testwk, rd_model, obs, obsl, bg_scores, test_model.log_Li, [test_record], source_priors, iterates=1000, remote=true)
+    dsm_model=remotecall_fetch(similarity_merge, testwk, test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000, remote=true)
     @test dsm_model.log_Li > test_model.log_Li
     @test dsm_model.sources != test_model.sources
-    @test dsm_model.mix_matrix != test_model.mix_matrix
-    #@test "SM from test" in dsm_model.flags
+    @test "SM from test" in dsm_model.flags
     
     rmprocs(testwk)
     rm(path)
