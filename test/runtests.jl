@@ -581,7 +581,7 @@ end
     instruct = Permute_Instruct(full_perm_funcvec, ones(length(full_perm_funcvec))./length(full_perm_funcvec),600,900)
 
     @info "Testing threaded convergence..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 10., wk_disp=false, tuning_disp=true, ens_disp=true, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=true)
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
 
     @test length(sp_ensemble.models) == 200
     @test length(sp_ensemble.log_Li) == length(sp_ensemble.log_Xi) == length(sp_ensemble.log_wi) == length(sp_ensemble.log_Liwi) == length(sp_ensemble.log_Zi) == length(sp_ensemble.Hi) == sp_ensemble.model_counter-200
@@ -600,7 +600,7 @@ end
     @everywhere using BioMotifInference
 
     ####CONVERGE############
-    final_logZ = converge_ensemble!(ensemble, instruct, clerk, worker_pool, 10., backup=(true,250), wk_disp=true, tuning_disp=false, ens_disp=false, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=false)
+    final_logZ = converge_ensemble!(ensemble, instruct, clerk, worker_pool, 50., backup=(true,250), wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
 
     rmprocs(worker_pool)
     rmprocs(clerk)
