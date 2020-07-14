@@ -22,7 +22,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         update!(meter,lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]),lps(log_frac,e.log_Zi[end]))        
     end
 
-    final_logZ = logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(1/length(e.models))
+    final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
 
     @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
@@ -30,10 +30,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
 end
 
     
-function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, clerk::Vector{Int64}, wk_pool::Vector{Int64}, evidence_fraction::AbstractFloat=.001; min_func_weight=.01, backup::Tuple{Bool,<:Integer}=(false,0), verbose::Bool=false, progargs...)
-    length(clerk)>1 && @warn "Only one clerk worker process is used!"
-    clerk=clerk[1]
-
+function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_pool::Vector{Int64}, evidence_fraction::AbstractFloat=.001; min_func_weight=.01, backup::Tuple{Bool,<:Integer}=(false,0), verbose::Bool=false, progargs...)
     N = length(e.models)
     log_frac=log(evidence_fraction)
     
@@ -68,7 +65,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, cler
         update!(meter, lps(findmax([model.log_Li for model in e.models])[1], e.log_Xi[end]), lps(log_frac,e.log_Zi[end]))
     end
     take!(job_chan); put!(job_chan, (e.models, e.contour, nothing)) #nothing instruction terminates worker functions
-    final_logZ = logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(1/length(e.models))
+    final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
 
     @info "Job done, sampled to convergence. Final logZ $final_logZ"
 

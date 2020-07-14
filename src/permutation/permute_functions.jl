@@ -229,7 +229,7 @@ end
 
 Set()
 
-function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}; info_thresh::AbstractFloat=1., remote=false)
+function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; info_thresh::AbstractFloat=1., remote=false)
     new_log_Li=-Inf;  iterate = 1
     T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_sources=deepcopy(m.sources)

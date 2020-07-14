@@ -21,8 +21,6 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
     top_m::ICA_PWM_Model    
 
     log_frac::AbstractFloat
-    total_step::AbstractFloat
-    etc::AbstractFloat
     mean_stp_time::AbstractFloat
 
     wk_disp::Bool
@@ -78,8 +76,6 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
          top_m,
          log_frac,
          0.,
-         0.,
-         0.,
          wk_disp,
          tuning_disp,
          conv_plot,
@@ -105,15 +101,9 @@ function update!(p::ProgressNS, val, thresh; options...)
     p.tstp=time()-p.tlast
     p.mean_stp_time=(p.tlast-p.tfirst)/stps_elapsed
 
-    interval = val - thresh
+    p.interval = val - thresh
     popfirst!(p.convergence_history)
-    push!(p.convergence_history, interval)
-    step = p.interval - interval
-    !isinf(step) && step>0 && (p.total_step+=step)
-
-    p.etc= (p.interval/(p.total_step/stps_elapsed))*p.mean_stp_time
-
-    p.interval=interval
+    push!(p.convergence_history, p.interval)    
 
     p.top_m=deserialize(p.e.models[findmax([model.log_Li for model in p.e.models])[2]].path)
 
@@ -128,7 +118,7 @@ function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offs
         if p.printed
             p.triggered = true
             dur = durationstring(t-p.tfirst)
-            msg = @sprintf "%s Converged. Time: %s (%d iterations). H: %s\n" p.desc dur p.counter p.e.Hi[end]
+            msg = @sprintf "%s Converged. Time: %s (%d iterations). logZ: %s\n" p.desc dur p.counter p.e.log_Zi[end]
             
             print(p.output, "\n" ^ (p.offset + p.numprintedvalues))
             move_cursor_up_while_clearing_lines(p.output, p.numprintedvalues)
@@ -148,7 +138,7 @@ function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offs
     end
 
     if t > p.tlast+p.dt && !p.triggered
-        msg = @sprintf "%s Iterate: %s Step time μ: %s Convergence Interval: %g ETC: %s\n" p.desc p.counter hmss(p.mean_stp_time) p.interval hmss(p.etc)
+        msg = @sprintf "%s Iterate: %s Step time μ: %s Convergence Interval: %g\n" p.desc p.counter hmss(p.mean_stp_time) p.interval
 
         print(p.output, "\n" ^ (p.offset + p.numprintedvalues))
         move_cursor_up_while_clearing_lines(p.output, p.numprintedvalues)

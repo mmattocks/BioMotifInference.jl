@@ -452,7 +452,7 @@ end
 
     erosion_model=ICA_PWM_Model("erode", erosion_sources, test_model.informed_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
 
-    eroded_model=erode_model(erosion_model, Vector{Model_Record}(), obs, obsl, bg_scores, erosion_model.log_Li, source_priors)
+    eroded_model=erode_model(erosion_model, Vector{Model_Record}(), obs, obsl, bg_scores, erosion_model.log_Li)
     @test eroded_model.log_Li > erosion_model.log_Li
     @test eroded_model.sources != erosion_model.sources
     @test eroded_model.mix_matrix == erosion_model.mix_matrix
@@ -463,7 +463,6 @@ end
     @test eroded_model.sources[3][1]==erosion_model.sources[3][1][2:4,:]
 
     path=randstring()
-    println(path)
     test_record = Model_Record(path, ps_model.log_Li)
     serialize(path, ps_model)
 
@@ -581,7 +580,7 @@ end
     instruct = Permute_Instruct(full_perm_funcvec, ones(length(full_perm_funcvec))./length(full_perm_funcvec),600,900)
 
     @info "Testing threaded convergence..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
 
     @test length(sp_ensemble.models) == 200
     @test length(sp_ensemble.log_Li) == length(sp_ensemble.log_Xi) == length(sp_ensemble.log_wi) == length(sp_ensemble.log_Liwi) == length(sp_ensemble.log_Zi) == length(sp_ensemble.Hi) == sp_ensemble.model_counter-200
@@ -595,15 +594,13 @@ end
 
     @info "Testing multiprocess convergence..."
     @info "Spawning worker pool..."
-    clerk=addprocs(1, topology=:master_worker)
     worker_pool=addprocs(2, topology=:master_worker)
     @everywhere using BioMotifInference
 
     ####CONVERGE############
-    final_logZ = converge_ensemble!(ensemble, instruct, clerk, worker_pool, 50., backup=(true,250), wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
+    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 50000000000., backup=(true,250), wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
 
     rmprocs(worker_pool)
-    rmprocs(clerk)
 
     @test length(ensemble.models) == 200
     @test length(ensemble.log_Li) == length(ensemble.log_Xi) == length(ensemble.log_wi) == length(ensemble.log_Liwi) == length(ensemble.log_Zi) == length(ensemble.Hi) == ensemble.model_counter-200
