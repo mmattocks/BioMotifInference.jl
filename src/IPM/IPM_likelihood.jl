@@ -1,9 +1,9 @@
 
 #LIKELIHOOD SCORING FUNCS
-function IPM_likelihood(sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}, observations::Matrix{Integer}, obs_lengths::Vector{Integer}, bg_scores::AbstractArray{AbstractFloat}, mix::BitMatrix, revcomp::Bool=true, returncache::Bool=false, cache::Vector{AbstractFloat}=zeros(0), clean::Vector{Bool}=Vector(falses(size(observations)[2])))
+function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}, observations::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractArray{<:AbstractFloat}, mix::BitMatrix, revcomp::Bool=true, returncache::Bool=false, cache::AbstractVector{<:AbstractFloat}=zeros(0), clean::AbstractVector{<:Bool}=Vector(falses(size(observations)[2])))
     source_wmls=[size(source[1])[1] for source in sources]
     O = size(bg_scores)[2]
-    obs_lhs=Vector{Vector{AbstractFloat}}()
+    obs_lhs=Vector{Vector{Float64}}()
     nt=Threads.nthreads()
     for t in 1:nt-1
         push!(obs_lhs,zeros(Int(floor(O/nt))))
@@ -40,21 +40,21 @@ function IPM_likelihood(sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}, o
     returncache ? (return lps([lps(obs_lhs[t]) for t in 1:nt]), vcat(obs_lhs...)) : (return lps([lps(obs_lhs[t]) for t in 1:nt]))
 end
 
-                function score_obs_sources(sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}, observation::Vector{Integer}, obsl::Integer, source_wmls::Vector{Integer}; revcomp=true) 
-                    scores=Vector{Matrix{AbstractFloat}}(undef, length(sources))
+                function score_obs_sources(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}, observation::AbstractVector{<:Integer}, obsl::Integer, source_wmls::AbstractVector{<:Integer}; revcomp=true) 
+                    scores=Vector{Matrix{Float64}}(undef, length(sources))
 
                     for (s,source) in enumerate(sources)
                         pwm = source[1] #get the PWM from the source tuple
                         wml = source_wmls[s] #weight matrix length
                         source_stop=obsl-wml+1 #stop scannng th source across the observation here
 
-                        scores[s]=nnlearn.score_source(observation, pwm, source_stop, revcomp) #get the scores for this oxs
+                        scores[s]=score_source(observation, pwm, source_stop, revcomp) #get the scores for this oxs
                     end
 
                     return scores
                 end
 
-                function score_source(observation::AbstractArray{Integer,1}, source::Matrix{AbstractFloat}, source_stop::Integer, revcomp::Bool=true)
+                function score_source(observation::AbstractVector{<:Integer}, source::AbstractMatrix{<:AbstractFloat}, source_stop::Integer, revcomp::Bool=true)
                     revcomp ? (revsource = revcomp_pwm(source); score_matrix = zeros(source_stop,2)) : score_matrix = zeros(source_stop)
                     forward_score = 0.0
                     revcomp && (reverse_score = 0.0)
@@ -75,15 +75,15 @@ end
                     
                     return score_matrix
                 end
-                                function revcomp_pwm(pwm::Matrix{AbstractFloat}) #in order to find a motif on the reverse strand, we scan the forward strand with the reverse complement of the pwm, reordered 3' to 5', so that eg. an PWM for an ATG motif would become one for a CAT motif
+                                function revcomp_pwm(pwm::AbstractMatrix{<:AbstractFloat}) #in order to find a motif on the reverse strand, we scan the forward strand with the reverse complement of the pwm, reordered 3' to 5', so that eg. an PWM for an ATG motif would become one for a CAT motif
                                     return pwm[end:-1:1,end:-1:1]
                                 end
 
 
-                function weave_scores(obsl::Integer, bg_scores::SubArray, score_mat::Vector{Matrix{AbstractFloat}}, obs_source_indices::Vector{Integer}, source_wmls::Vector{Integer}, log_motif_expectation::AbstractFloat, cardinality_penalty::AbstractFloat,  revcomp::Bool=true)
+                function weave_scores(obsl::Integer, bg_scores::SubArray, score_mat::AbstractVector{<:AbstractMatrix{<:AbstractFloat}}, obs_source_indices::AbstractVector{<:Integer}, source_wmls::AbstractVector{<:Integer}, log_motif_expectation::AbstractFloat, cardinality_penalty::AbstractFloat,  revcomp::Bool=true)
                     L=obsl+1
                     lh_vec = zeros(L)#likelihood vector is one position (0 initialiser) longer than the observation
-                    osi_emitting = Vector{Integer}()
+                    osi_emitting = Vector{Int64}()
                 
                     @inbounds for i in 2:L #i=1 is ithe lh_vec initializing 0, i=2 is the score of the first background position (ie t=1)
                         t=i-1

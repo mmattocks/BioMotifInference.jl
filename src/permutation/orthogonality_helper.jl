@@ -1,41 +1,70 @@
-
 ##ORTHOGONALITY HELPER
-function consolidate_srcs(con_idxs::Vector{Vector{Integer}}, sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}, mix::BitMatrix, observations::Matrix{Integer}, obs_lengths::Vector{Integer}, bg_scores::Matrix{AbstractFloat}, source_priors::Vector{Vector{Dirichlet{AbstractFloat}}}, informed_sources::Integer, source_length_limits::UnitRange)
-    new_sources=deepcopy(sources);new_mix=deepcopy(mix)
-    consrc=0
-    for (s,convec) in enumerate(con_idxs)
-        if length(convec)>0
-            consrc=s
-            for cons in convec
-                new_sources[cons]=init_logPWM_sources([source_priors[cons]], source_length_limits)[1]
-                new_mix[:,s]=[any([new_mix[i,s],mix[i,cons]]) for i in 1:size(mix,1)] #consolidate the new_mix source with the consolidated mix
-            end
-            break #dont do this for more than one consolidation at a time
-        end
-    end
+function consolidate_srcs(con_idxs::Dict{Integer,Vector{Integer}}, m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat,  models::AbstractVector{<:Model_Record}; iterates::Integer=length(m.sources)*2, remote=false) 
+    new_log_Li=-Inf;  iterate = 1
+    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
+    flags=deepcopy(m.flags); flags[1]="consolidate from $(m.name)"
+    "nofit" in flags && deleteat!(flags, findfirst(isequal("nofit"), flags))
 
-    return fit_mix(ICA_PWM_model("consolidate", new_sources, informed_sources, source_length_limits, new_mix, -Inf, [""]), observations, obs_lengths, bg_scores, consrc)
-end
+    a, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
 
-function consolidate_check(sources::Vector{Tuple{Matrix{AbstractFloat},Integer}}; thresh=.035)
-    pass=true
-    con_idxs=Vector{Vector{Integer}}()
-    for (s1,src1) in enumerate(sources)
-        s1_idxs=Vector{Integer}()
-        for (s2,src2) in enumerate(sources)
-            if !(s1==s2)
-                pwm1=src1[1]; pwm2=src2[1]
-                if -3<=(size(pwm1,1)-size(pwm2,1))<=3 
-                    if pwm_distance(pwm1,pwm2)<thresh
-                        push!(s1_idxs,s2)
-                        pass=false
-                    end
+    while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
+        new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
+        clean=Vector{Bool}(trues(O))
+
+        for host_src in filter(!in(vcat(values(con_idxs)...)), keys(con_idxs)) #copy mix information to the source to be consolidated on as host
+            for cons_src in con_idxs[host_src]
+                for obs in 1:size(new_mix,1)
+                    new_mix[obs,host_src]=new_mix[obs,host_src] || new_mix[obs,cons_src]
                 end
             end
         end
-        push!(con_idxs,s1_idxs)
+
+        remote ? (merger_m = deserialize(rand(models).path)) : (merger_m = remotecall_fetch(deserialize, 1, rand(models).path)) #randomly select a model to merge
+        used_m_srcs=Vector{Int64}()
+
+        for src in unique(vcat(values(con_idxs)...)) #replace all non-host sources with sources from a merger model unlike the one being removed
+            distvec=[pwm_distance(m.sources[src][1],m_src[1]) for m_src in merger_m.sources]
+            m_src=findmax(distvec)[2]
+            while m_src in used_m_srcs
+                distvec[m_src]=0.; m_src=findmax(distvec)[2]
+                length(used_m_srcs)==length(merger_m.sources) && break;break
+            end
+
+            clean[new_mix[:,src]].=false #mark dirty any obs that start with the source
+            new_sources[src]=merger_m.sources[m_src]
+            new_mix[:,src]=merger_m.mix_matrix[:,m_src]
+            clean[new_mix[:,src]].=false #mark dirty any obs that end with the source
+            push!(used_m_srcs, m_src)
+        end
+        
+        if consolidate_check(new_sources)[1] #if the new sources pass the consolidate check
+            new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true, cache, clean) #assess likelihood
+        end
+
+        iterate += 1
     end
-    return pass, con_idxs
+
+    return ICA_PWM_Model("candidate",new_sources, m.informed_sources, m.source_length_limits, new_mix, new_log_Li,flags)
+end
+
+function consolidate_check(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}; thresh=.035)
+    pass=true
+    lengthδmat=[size(src1[1],1) - size(src2[1],1) for src1 in sources, src2 in sources]
+    cons_idxs=Dict{Integer,Vector{Integer}}()
+    for src1 in 1:length(sources)
+        for src2 in src1+1:length(sources)
+            if lengthδmat[src1,src2]==0 && pwm_distance(sources[src1][1],sources[src2][1]) < thresh
+                if !in(src1,keys(cons_idxs))
+                    cons_idxs[src1]=[src2]; pass=false
+                else
+                    push!(cons_idxs[src1], src2)
+                end
+            end
+        end
+    end
+
+    return pass, cons_idxs
 end
 
                 function pwm_distance(pwm1,pwm2)
