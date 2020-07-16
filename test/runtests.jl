@@ -2,7 +2,7 @@
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, PRIOR_WT
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!
 import Distances: euclidean
 
 @info "Beginning tests..."
@@ -531,6 +531,28 @@ end
     
     rmprocs(testwk)
     rm(path)
+end
+
+@testset "Permute tuner" begin
+    clmp=.01
+    funcvec=[random_decorrelate,fit_mix]
+    instruct=Permute_Instruct(funcvec, [.5,.5],100,100)
+    tuner=Permute_Tuner(instruct,clmp)
+    @test tuner.weights==instruct.weights
+    #need to test update_weights functionality
+    #want to supply some fake data to induce a .8 .2 categorical
+    tuner.velocities[random_decorrelate]=[1. for i in 1:TUNING_MEMORY]
+    tuner.velocities[fit_mix]=[1. for i in 1:TUNING_MEMORY]
+    tuner.successes[random_decorrelate]=falses(TUNING_MEMORY)
+    tuner.successes[fit_mix]=falses(TUNING_MEMORY)
+    tuner.successes[random_decorrelate][1:Int(floor(TUNING_MEMORY*.8))].=true
+    tuner.successes[fit_mix][1:Int(floor(TUNING_MEMORY*.2))].=true
+    update_weights!(tuner)
+    @test tuner.weights==Categorical([.8,.2])
+    #check clamping
+    tuner.successes[random_decorrelate]=falses(TUNING_MEMORY)
+    update_weights!(tuner)
+    @test tuner.weights==Categorical([clmp,1-clmp])
 end
 
 @testset "Ensemble assembly and nested sampling functions" begin
