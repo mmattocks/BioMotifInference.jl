@@ -13,7 +13,7 @@ mutable struct IPM_Ensemble
 	obs_array::Matrix{Integer} #observations Txo
 	obs_lengths::Vector{Integer}
 
-	source_priors::Vector{Vector{Dirichlet{AbstractFloat}}} #source pwm priors
+	source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}} #source pwm priors
 	mix_prior::Tuple{BitMatrix,AbstractFloat} #prior on %age of observations that any given source contributes to
 
 	bg_scores::Matrix{AbstractFloat} #precalculated background HMM scores, same dims as obs
@@ -27,7 +27,7 @@ mutable struct IPM_Ensemble
 end
 
 ####IPM_Ensemble FUNCTIONS
-IPM_Ensemble(path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
 IPM_Ensemble(
 	path,
 	assemble_IPMs(path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
@@ -47,7 +47,7 @@ IPM_Ensemble(
 	no_models+1,
 	IPM_likelihood(init_logPWM_sources(source_priors, source_length_limits), obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores, falses(size(obs)[2],length(source_priors))))
 
-IPM_Ensemble(worker_pool::AbstractVector{<:Integer}, path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::Array{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(worker_pool::AbstractVector{<:Integer}, path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::Array{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
 IPM_Ensemble(
 	path,
 	distributed_IPM_assembly(worker_pool, path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
@@ -67,7 +67,7 @@ IPM_Ensemble(
 	no_models+1,
 	IPM_likelihood(init_logPWM_sources(source_priors, source_length_limits), obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores, falses(size(obs)[2],length(source_priors))))
 
-function assemble_IPMs(path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
+function assemble_IPMs(path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
 	ensemble_records = Vector{Model_Record}()
 	!isdir(path) && mkpath(path)
 
@@ -88,7 +88,7 @@ function assemble_IPMs(path::String, no_models::Integer, source_priors::Abstract
 	return ensemble_records, minimum([record.log_Li for record in ensemble_records])
 end
 
-function distributed_IPM_assembly(worker_pool::Vector{Int64}, path::String, no_models::Integer, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
+function distributed_IPM_assembly(worker_pool::Vector{Int64}, path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
 	ensemble_records = Vector{Model_Record}()
 	!isdir(path) && mkpath(path)
 
@@ -150,7 +150,7 @@ function Base.show(io::IO, e::IPM_Ensemble; nsrc=0, progress=false)
 	livec=[model.log_Li for model in e.models]
 	maxLH=maximum(livec)
 	printstyled(io, "ICA PWM Model Ensemble @ $(e.path)\n", bold=true)
-	msg = @sprintf "Contour: %3.3f MaxLH:%3.3f Max/Naive:%3.3f log Evidence:%3.3f" e.contour maxLH (maxLH-e.naive_lh) e.log_Zi[end]
+	msg = @sprintf "Contour: %3.3e MaxLH:%3.3e Max/Naive:%3.3e log Evidence:%3.3e" e.contour maxLH (maxLH-e.naive_lh) e.log_Zi[end]
 	println(io, msg)
 	hist=UnicodePlots.histogram(livec, title="Ensemble Likelihood Distribution")
 	show(io, hist)

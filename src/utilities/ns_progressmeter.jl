@@ -84,7 +84,7 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
          liwi_disp,
          src_disp,
          nsrcs,
-         zeros(500))
+         zeros(CONVERGENCE_MEMORY))
     end
 end
 

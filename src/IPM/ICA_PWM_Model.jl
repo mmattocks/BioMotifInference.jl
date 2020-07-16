@@ -14,10 +14,10 @@ struct ICA_PWM_Model #Independent component analysis position weight matrix mode
 end
 
 #ICA_PWM_Model FUNCTIONS
-ICA_PWM_Model(name::String, source_priors::AbstractVector{<:AbstractVector{Dirichlet{Float64}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
+ICA_PWM_Model(name::String, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
 
 #MODEL INIT
-function init_IPM(name::String, source_priors::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
+function init_IPM(name::String, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
     assert_obs_bg_compatibility(observations,bg_scores)
     T,O = size(observations)
     S=length(source_priors)
@@ -36,22 +36,54 @@ end
                     T!=t+1 && throw(DomainError("Background score array must have the same observation lengths as observations!"))
                 end
 
-                function init_logPWM_sources(prior_vector::AbstractVector{<:AbstractVector{<:Dirichlet{<:AbstractFloat}}}, source_length_limits::UnitRange{<:Integer})
+                function init_logPWM_sources(prior_vector::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, source_length_limits::UnitRange{<:Integer})
                     srcvec = Vector{Tuple{Matrix{Float64},Int64}}()
-                    prior_coord = 1
-                        for (p, prior) in enumerate(prior_vector)
-                            min_PWM_length=source_length_limits[1]
-                            PWM_length = rand(min_PWM_length:length(prior)) #generate a PWM from a random subset of the prior
-                            PWM = zeros(PWM_length,4)
-                            prior_coord = rand(1:length(prior)-PWM_length+1) #determine what position on the prior to begin sampling from based on the PWM length
-                            for (position, dirichlet) in enumerate(prior)
-                                if position >= prior_coord #skip prior positions that are before the selected prior_coord
-                                    sample_coord = min(position-prior_coord+1,PWM_length) #sample_coord is the position on the sampled PWM
-                                    PWM[sample_coord, :] = rand(dirichlet) #draw the position WM from the dirichlet
-                                    !isprobvec(PWM[sample_coord, :]) && throw(DomainError("Bad weight vec produced by init_sources! $(PWM[sample_coord,:])"))#make sure it's a valid probvec
+                        for prior in prior_vector
+                            if typeof(prior)<:AbstractVector{<:Dirichlet{<:AbstractFloat}}
+                                if length(prior) < source_length_limits[1]
+                                    length_dist=DiscreteNonParametric(
+                                        [source_length_limits...],
+                                        [PRIOR_LENGTH_MASS,ones(length(source_length_limits[2:end]))/length(source_length_limits[2:end]).*(1-PRIOR_LENGTH_MASS)])
+                                    PWM_length=rand(length_dist)
+                                elseif source_length_limits[1] < length(prior) < source_length_limits[end]
+                                    length_dist=DiscreteNonParametric(
+                                        [source_length_limits...],
+                                        [
+                                            (ones(length(prior)-source_length_limits[1]+1)/(length(prior)-source_length_limits[1]+1).*PRIOR_LENGTH_MASS)...,
+                                            (ones(source_length_limits[end]-length(prior))/(source_length_limits[end]-length(prior)).*(1-PRIOR_LENGTH_MASS))...
+                                        ]
+                                    )
+                                    PWM_length=rand(length_dist)
+                                else
+                                    PWM_length=rand(source_length_limits)
                                 end
+
+                                if PWM_length>length(prior)
+                                    prior_coord=rand(-(PWM_length-length(prior)):1)
+                                else
+                                    prior_coord=rand(1:length(prior)-PWM_length+1)
+                                end
+
+                                PWM = zeros(PWM_length,4)
+
+                                curr_pos=prior_coord
+                                for pos in 1:PWM_length
+                                    curr_pos < 1 || curr_pos > length(prior) ? dirichlet=Dirichlet(ones(4)/4) :
+                                        dirichlet=prior[curr_pos]
+                                    PWM[pos, :] = rand(dirichlet)
+                                end
+                                push!(srcvec, (log.(PWM), prior_coord)) #push the source PWM to the source vector with the prior coord idx to allow drawing from the appropriate prior dirichlets on permuting source length
+                            elseif prior==false
+                                PWM_length=rand(source_length_limits)
+                                PWM=zeros(PWM_length,4)
+                                dirichlet=Dirichlet(ones(4)/4)
+                                for pos in 1:PWM_length
+                                    PWM[pos,:] = rand(dirichlet)
+                                end
+                                push!(srcvec, (log.(PWM), 1))
+                            else
+                                throw(ArgumentError("Bad prior supplied for ICA_PWM_Model!"))
                             end
-                            push!(srcvec, (log.(PWM), prior_coord)) #push the source PWM to the source vector with the prior coord idx to allow drawing from the appropriate prior dirichlets on permuting source length
                         end
                     return srcvec
                 end

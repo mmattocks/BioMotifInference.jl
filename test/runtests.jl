@@ -2,7 +2,7 @@
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, PRIOR_WT
 import Distances: euclidean
 
 @info "Beginning tests..."
@@ -13,33 +13,31 @@ O=1000;S=50
 @testset "PWM source prior setup, PWM source initialisation and manipulation functions" begin
     #test dirichlet prior estimation from wm inputs
     wm_input = [.0 .2 .3 .5; .0 .2 .3 .5]
-    est_dirichlet_vec = estimate_dirichlet_prior_on_wm(wm_input,4.0)
+    est_dirichlet_vec = estimate_dirichlet_prior_on_wm(wm_input)
     @test typeof(est_dirichlet_vec) == Vector{Dirichlet{Float64}}
     for pos in 1:length(est_dirichlet_vec)
-        @test isapprox(est_dirichlet_vec[pos].alpha, [0.,.8,1.2,2.0])
+        @test isapprox(est_dirichlet_vec[pos].alpha, wm_input[pos,:].*PRIOR_WT)
     end
 
     bad_input = wm_input .* 2
-    @test_throws DomainError estimate_dirichlet_prior_on_wm(bad_input,4.0)
+    @test_throws DomainError estimate_dirichlet_prior_on_wm(bad_input)
 
     wm_input = [.1 .2 .3 .4; .1 .2 .3 .4]
-    est_dirichlet_vec = estimate_dirichlet_prior_on_wm(wm_input,4.0)
+    est_dirichlet_vec = estimate_dirichlet_prior_on_wm(wm_input)
     @test typeof(est_dirichlet_vec) == Vector{Dirichlet{Float64}}
     for pos in 1:length(est_dirichlet_vec)
-        @test est_dirichlet_vec[pos].alpha == [.4,.8,1.2,1.6]
+        @test est_dirichlet_vec[pos].alpha == wm_input[pos,:].*PRIOR_WT
     end
 
     length_range = 2:2
 
     #test informative/uninformative source prior vector assembly
-    test_priors = assemble_source_priors(2, [wm_input], 4.0, length_range)
+    test_priors = assemble_source_priors(2, [wm_input])
     @test length(test_priors)  == 2
     for pos in 1:length(test_priors[1])
-        @test test_priors[1][pos].alpha == [.4,.8,1.2,1.6]
+        @test test_priors[1][pos].alpha == wm_input[pos,:].*PRIOR_WT
     end
-    for pos in 1:length(test_priors[2])
-        @test test_priors[2][pos].alpha == ones(4)/4
-    end
+    @test test_priors[2] == false
 
     #test source wm initialisation from priors
     test_sources = init_logPWM_sources(test_priors, length_range)
@@ -388,7 +386,7 @@ end
 
     src_length_limits=2:5
 
-    source_priors = assemble_source_priors(3, [source_pwm, source_pwm_2], 4.0, src_length_limits)
+    source_priors = assemble_source_priors(3, [source_pwm, source_pwm_2])
     mix_prior=0.2
 
     bg_scores = log.(fill(.25, (12,2)))
@@ -407,19 +405,17 @@ end
     @test ps_model.mix_matrix == test_model.mix_matrix
     @test "PS from test" in ps_model.flags
 
-    pm_model= permute_mix(test_model, Vector{Model_Record}(), obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
+    pm_model= permute_mix(test_model, obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
     @test pm_model.log_Li > test_model.log_Li
     @test pm_model.sources == test_model.sources
     @test pm_model.mix_matrix != test_model.mix_matrix
     @test "PM from test" in pm_model.flags
 
-    badmix_lh=IPM_likelihood(test_model.sources, obs,obsl, bg_scores, trues(2,3))
-    badmix=ICA_PWM_Model("badmix",test_model.sources, test_model.informed_sources, test_model.source_length_limits, trues(2,3), badmix_lh,[""])
-    psfm_model=perm_src_fit_mix(badmix, Vector{Model_Record}(),obs, obsl, bg_scores, badmix.log_Li, source_priors,  iterates=1000)
-    @test psfm_model.log_Li > badmix.log_Li
-    @test psfm_model.sources != badmix.sources
-    @test psfm_model.mix_matrix != badmix.mix_matrix
-    @test "PSFM from badmix" in psfm_model.flags
+    psfm_model=perm_src_fit_mix(test_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors,  iterates=1000)
+    @test psfm_model.log_Li > test_model.log_Li
+    @test psfm_model.sources != test_model.sources
+    @test psfm_model.mix_matrix != test_model.mix_matrix
+    @test "PSFM from test" in psfm_model.flags
 
     fm_model=fit_mix(test_model,obs,obsl,bg_scores)
     @test fm_model.log_Li > test_model.log_Li
@@ -462,32 +458,76 @@ end
     @test eroded_model.sources[3]!=erosion_model.sources[3]
     @test eroded_model.sources[3][1]==erosion_model.sources[3][1][2:4,:]
 
+    merger_srcs=   [([.1 .7 .1 .1
+    .1 .7 .1 .1
+    .15 .35 .35 .15],
+    1
+    ),
+    ([.1 .7 .1 .1
+        .1 .65 .6 .1
+        .1 .7 .1 .1],
+        1
+    ),
+    ([.1 .7 .1 .1
+        .1 .7 .1 .1
+        .1 .7 .1 .1
+        .7 .1 .1 .1],
+        1
+    )]
+
+    accurate_srcs=[ ([0.93 0.04 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02], 1),
+    ([0.94 0.02 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02], 1),
+    ([0.95 0.01 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02], 1)]
+
+    merger_mix = BitMatrix([true false false
+    true true false])
+
+    accurate_mix=BitMatrix([true false false
+    true true false])
+
+    merger_base=ICA_PWM_Model("merge", merger_srcs, 0,src_length_limits, merger_mix, IPM_likelihood(merger_srcs,obs,obsl, bg_scores, merger_mix),[""])
+
+    merger_target=ICA_PWM_Model("target", accurate_srcs, 0, src_length_limits, accurate_mix, IPM_likelihood(accurate_srcs,obs,obsl,bg_scores,accurate_mix),[""])
+
     path=randstring()
-    test_record = Model_Record(path, ps_model.log_Li)
-    serialize(path, ps_model)
+    test_record = Model_Record(path, merger_target.log_Li)
+    serialize(path, merger_target)
 
-    dm_model=distance_merge(test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
-    @test dm_model.log_Li > test_model.log_Li
-    @test dm_model.sources != test_model.sources
-    @test "DM from test" in dm_model.flags
+    dm_model=distance_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000)
+    @test dm_model.log_Li > merger_base.log_Li
+    @test dm_model.sources != merger_base.sources
+    distance_dict=Dict(1=>3,2=>1,3=>1)
+    for (n,src) in enumerate(dm_model.sources)
+        @test (dm_model.sources[n]==merger_base.sources[n]) || (dm_model.sources[n]==merger_target.sources[distance_dict[n]])
+    end
+    @test "DM from merge" in dm_model.flags
 
-    sm_model=similarity_merge(test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
-    @test sm_model.log_Li > test_model.log_Li
-    @test sm_model.sources != test_model.sources
-    @test "SM from test" in sm_model.flags
+    sm_model=similarity_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000)
+    @test sm_model.log_Li > merger_base.log_Li
+    @test sm_model.sources != merger_base.sources
+    for (n,src) in enumerate(dm_model.sources)
+        @test (sm_model.sources[n]==merger_base.sources[n]) || (sm_model.sources[n]==merger_target.sources[n])
+    end
+    @test "SM from merge" in sm_model.flags
 
     testwk=addprocs(1)[1]
     @everywhere import BioMotifInference
 
-    ddm_model=remotecall_fetch(distance_merge, testwk, test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000, remote=true)
-    @test ddm_model.log_Li > test_model.log_Li
-    @test ddm_model.sources != test_model.sources
-    @test ("DM from test" in ddm_model.flags)
+    ddm_model=remotecall_fetch(distance_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000, remote=true)
+    @test ddm_model.log_Li > merger_base.log_Li
+    @test ddm_model.sources != merger_base.sources
+    for (n,src) in enumerate(ddm_model.sources)
+        @test (ddm_model.sources[n]==merger_base.sources[n]) || (ddm_model.sources[n]==merger_target.sources[distance_dict[n]])
+    end
+    @test ("DM from merge" in ddm_model.flags)
 
-    dsm_model=remotecall_fetch(similarity_merge, testwk, test_model, [test_record], obs, obsl, bg_scores, test_model.log_Li, iterates=1000, remote=true)
-    @test dsm_model.log_Li > test_model.log_Li
-    @test dsm_model.sources != test_model.sources
-    @test "SM from test" in dsm_model.flags
+    dsm_model=remotecall_fetch(similarity_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000, remote=true)
+    @test dsm_model.log_Li > merger_base.log_Li
+    @test dsm_model.sources != merger_base.sources
+    for (n,src) in enumerate(dm_model.sources)
+        @test (dsm_model.sources[n]==merger_base.sources[n]) || (dsm_model.sources[n]==merger_target.sources[n])
+    end
+    @test "SM from merge" in dsm_model.flags
     
     rmprocs(testwk)
     rm(path)
@@ -509,7 +549,7 @@ end
     src_length_limits=2:12
     no_sources=4
 
-    source_priors = assemble_source_priors(no_sources, [source_pwm, source_pwm_2], 4.0, src_length_limits)
+    source_priors = assemble_source_priors(no_sources, [source_pwm, source_pwm_2])
     mix_prior=.5
 
     bg_scores = log.(fill(.1, (30,27)))
@@ -545,7 +585,6 @@ end
     order_seqs = BioBackgroundModels.get_order_n_seqs(obs, 0)
     coded_seqs = BioBackgroundModels.code_seqs(order_seqs)
     obs=Array(transpose(coded_seqs))
-    position_start=1;offsets=[0,0]
 
     ensemble = IPM_Ensemble(ensembledir, 150, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
     ensemble = IPM_Ensemble(ensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits) #test resumption
@@ -579,6 +618,12 @@ end
 
     instruct = Permute_Instruct(full_perm_funcvec, ones(length(full_perm_funcvec))./length(full_perm_funcvec),600,900)
 
+    @info "Testing convergence displays..."
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000., wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=3)
+
+    sp_ensemble=reset_ensemble(sp_ensemble)
+
+
     @info "Testing threaded convergence..."
     sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
 
@@ -590,7 +635,7 @@ end
     for i in 1:length(sp_ensemble.log_Zi)-1
         @test sp_ensemble.log_Zi[i] <= sp_ensemble.log_Zi[i+1]
     end
-    @test sp_logZ > -1400.0
+    @test sp_logZ > -1500.0
 
     @info "Testing multiprocess convergence..."
     @info "Spawning worker pool..."

@@ -8,6 +8,18 @@ module BioMotifInference
     import Distances: euclidean
     import BioBackgroundModels: lps
 
+    #CONSTANTS GIVING RISE TO IMPLEMENTATION-SPECIFIC SAMPLING EFFECTS
+    global TUNING_MEMORY=1500 #number of past function calls to consider when tuning permutation function weights
+    global CONVERGENCE_MEMORY=500 #number of iterates to display for convergence interval history
+    global PWM_SHIFT_DIST=Weibull(.5,.1) #distribution of weight matrix permutation magnitudes
+    global PWM_SHIFT_FREQ=.2 #proportion of positions in source to permute weight matrix
+    global PWM_LENGTHPERM_FREQ=.2 #proportion of sources to permute length
+    global LENGTHPERM_RANGE=1:3
+    global MIN_MIX_PERMFREQ=.0001 #minimum proportion of mix positions to permute in relevant mix perm funcs
+    global PRIOR_WT=3. #estimate prior dirichlets from product of this constant and sample "mle" wm
+    global PRIOR_LENGTH_MASS=.8
+    global EROSION_INFO_THRESH=1.
+    
     include("IPM/ICA_PWM_Model.jl")
     export Model_Record
     export ICA_PWM_Model

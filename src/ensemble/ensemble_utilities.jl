@@ -8,6 +8,7 @@ function reset_ensemble(e::IPM_Ensemble)
         end
     end
 
+    new_e.contour=new_e.log_Li[1]
     new_e.log_Li=[new_e.log_Li[1]]
     new_e.log_Xi=[new_e.log_Xi[1]]
     new_e.log_wi=[new_e.log_wi[1]]
@@ -15,9 +16,9 @@ function reset_ensemble(e::IPM_Ensemble)
     new_e.log_Zi=[new_e.log_Zi[1]]
     new_e.Hi=[new_e.Hi[1]]
 
-    new_e.sample_posterior && (new_e.retained_posterior_samples=Vector{Model_Record}())
+    new_e.retained_posterior_samples=Vector{Model_Record}()
 
-    model_counter=length(new_e.models)+1
+    new_e.model_counter=length(new_e.models)+1
 
     return new_e
 end

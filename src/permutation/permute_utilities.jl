@@ -51,7 +51,7 @@ end
 
 
 
-function permute_source_length(source::Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}, prior::AbstractVector{<:Dirichlet{<:AbstractFloat}}, length_limits::UnitRange{<:Integer}, permute_range::UnitRange{<:Integer}=1:3, uninformative::Dirichlet=Dirichlet([.25,.25,.25,.25]))
+function permute_source_length(source::Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}, prior::Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}, length_limits::UnitRange{<:Integer}, permute_range::UnitRange{<:Integer}=LENGTHPERM_RANGE, uninformative::Dirichlet=Dirichlet([.25,.25,.25,.25]))
     source_PWM, prior_idx = source
     source_length = size(source_PWM,1)
 
@@ -62,12 +62,17 @@ function permute_source_length(source::Tuple{<:AbstractMatrix{<:AbstractFloat},<
     
     if permute_sign == 1 #if we're to add positions to the PWM
         ins_WM=zeros(permute_length,4)
-        for pos in 1:permute_length
-            prior_position=permute_pos+prior_idx
-            prior_position<1 || prior_position>length(prior) ? 
-                ins_WM[pos,:] = log.(transpose(rand(uninformative))) :
-                ins_WM[pos,:] = log.(transpose(rand(prior[prior_position])))
-                !isprobvec(exp.(ins_WM[pos,:])) && throw(DomainError(ins_WM, "Bad weight vector generated in permute_source_length!"))
+        if prior==false
+            for pos in 1:permute_length
+                ins_WM[pos,:] = log.(transpose(rand(uninformative)))
+            end
+        else
+            for pos in 1:permute_length
+                prior_position=permute_pos+prior_idx-1
+                prior_position<1 || prior_position>length(prior) ? 
+                    ins_WM[pos,:] = log.(transpose(rand(uninformative))) :
+                    ins_WM[pos,:] = log.(transpose(rand(prior[prior_position])))
+            end
         end
         upstream_source=source_PWM[1:permute_pos-1,:]
         downstream_source=source_PWM[permute_pos:end,:]
@@ -168,14 +173,20 @@ function mix_matrix_decorrelate(mix::BitMatrix, moves::Integer)
 end
 
 
-function most_dissimilar(mix1, mix2)
-    S1=size(mix1,2);S2=size(mix2,2)
-    dist_mat=zeros(S1,S2)
-    for s1 in 1:S1, s2 in 1:S2
-        dist_mat[s1,s2]=sum(mix1[:,s1].==mix2[:,s2])
-    end
-    scores=vec(sum(dist_mat,dims=1))
-    return findmin(scores)[2]
+# function most_dissimilar(mix1, mix2)
+#     S1=size(mix1,2);S2=size(mix2,2)
+#     dist_mat=zeros(S1,S2)
+#     for s1 in 1:S1, s2 in 1:S2
+#         dist_mat[s1,s2]=sum(mix1[:,s1].==mix2[:,s2])
+#     end
+#     scores=vec(sum(dist_mat,dims=1))
+#     return findmin(scores)[2]
+# end
+
+
+function most_dissimilar(src_mixvec, target_mixmat)
+    src_sim = [sum(src_mixvec.==target_mixmat[:,s]) for s in 1:size(target_mixmat,2)] #compose array of elementwise equality comparisons between mixvectors and sum to score
+    merge_s=findmin(src_sim)[2] #source from merger model will be the one with the highest equality comparison score
 end
 
 function most_similar(src_mixvec, target_mixmat)

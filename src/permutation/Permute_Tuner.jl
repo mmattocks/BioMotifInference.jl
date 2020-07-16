@@ -13,8 +13,8 @@ function Permute_Tuner(instruction::Permute_Instruct, clamp::AbstractFloat)
     succs=Dict{Function,BitVector}()
     funcnames=Vector{String}()
     for func in instruction.funcs
-        vels[func]=ones(500)
-        succs[func]=trues(500)
+        vels[func]=ones(TUNING_MEMORY)
+        succs[func]=trues(TUNING_MEMORY)
         push!(funcnames, string(nameof(func)))
     end
 
