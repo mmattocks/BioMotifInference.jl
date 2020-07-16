@@ -656,7 +656,7 @@ end
         @test ensemble.log_Zi[i] <= ensemble.log_Zi[i+1]
     end
     @test typeof(final_logZ) == Float64
-    @test final_logZ > -1400.0
+    @test final_logZ > -1500.0
 
     @info "Tests complete!"
 
