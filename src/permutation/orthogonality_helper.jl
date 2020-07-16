@@ -45,7 +45,7 @@ function consolidate_srcs(con_idxs::Dict{Integer,Vector{Integer}}, m::ICA_PWM_Mo
         iterate += 1
     end
 
-    return ICA_PWM_Model("candidate",new_sources, m.informed_sources, m.source_length_limits, new_mix, new_log_Li,flags)
+    return ICA_PWM_Model("candidate",new_sources, m.source_length_limits, new_mix, new_log_Li,flags)
 end
 
 function consolidate_check(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}; thresh=.035)

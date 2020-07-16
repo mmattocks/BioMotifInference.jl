@@ -6,7 +6,6 @@ end
 struct ICA_PWM_Model #Independent component analysis position weight matrix model
     name::String #designator for saving model to posterior
     sources::Vector{Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}} #vector of PWM signal sources (LOG PROBABILITY!!!) tupled with an index denoting the position of the first PWM base on the prior matrix- allows us to permute length and redraw from the appropriate prior position
-    informed_sources::Integer #number of sources with informative priors- these are not subject to frequency sorting in model mergers
     source_length_limits::UnitRange{<:Integer} #min/max source lengths for init and permutation
     mix_matrix::BitMatrix # obs x sources bool matrix
     log_Li::AbstractFloat
@@ -26,7 +25,7 @@ function init_IPM(name::String, source_priors::AbstractVector{<:Union{<:Abstract
     mix=init_mix_matrix(mix_prior,O,S)
     log_lh = IPM_likelihood(sources, observations, obs_lengths, bg_scores, mix)
 
-   return ICA_PWM_Model(name, sources, size(mix_prior[1],2), source_length_limits, mix, log_lh, ["init"])
+   return ICA_PWM_Model(name, sources, source_length_limits, mix, log_lh, ["init"])
 end
                 #init_IPM SUBFUNCS
                 function assert_obs_bg_compatibility(obs, bg_scores)

@@ -326,9 +326,9 @@ end
 
     distance_model = [(log.(src_TTAC),0),(log.(src_CAG),0),(log.(src_GCA),0)]
 
-    c1model = ICA_PWM_Model("c1", consolidate_one, 3, 3:4, cons_one_mix, IPM_likelihood(consolidate_one, obs, obsl, bg_scores, cons_one_mix),[""])
-    c2model = ICA_PWM_Model("c2", consolidate_two, 3, 3:4, cons_two_mix, IPM_likelihood(consolidate_two, obs, obsl, bg_scores, cons_two_mix),[""])
-    dmodel = ICA_PWM_Model("d", distance_model, 3, 3:4, trues(3,3), IPM_likelihood(distance_model, obs, obsl, bg_scores, trues(3,3)),[""])
+    c1model = ICA_PWM_Model("c1", consolidate_one, 3:4, cons_one_mix, IPM_likelihood(consolidate_one, obs, obsl, bg_scores, cons_one_mix),[""])
+    c2model = ICA_PWM_Model("c2", consolidate_two, 3:4, cons_two_mix, IPM_likelihood(consolidate_two, obs, obsl, bg_scores, cons_two_mix),[""])
+    dmodel = ICA_PWM_Model("d", distance_model, 3:4, trues(3,3), IPM_likelihood(distance_model, obs, obsl, bg_scores, trues(3,3)),[""])
 
     dpath=randstring()
     serialize(dpath, dmodel)
@@ -446,7 +446,7 @@ end
 
     erosion_lh=IPM_likelihood(erosion_sources,obs,obsl, bg_scores, eroded_mix)
 
-    erosion_model=ICA_PWM_Model("erode", erosion_sources, test_model.informed_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
+    erosion_model=ICA_PWM_Model("erode", erosion_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
 
     eroded_model=erode_model(erosion_model, Vector{Model_Record}(), obs, obsl, bg_scores, erosion_model.log_Li)
     @test eroded_model.log_Li > erosion_model.log_Li
@@ -485,9 +485,9 @@ end
     accurate_mix=BitMatrix([true false false
     true true false])
 
-    merger_base=ICA_PWM_Model("merge", merger_srcs, 0,src_length_limits, merger_mix, IPM_likelihood(merger_srcs,obs,obsl, bg_scores, merger_mix),[""])
+    merger_base=ICA_PWM_Model("merge", merger_srcs,src_length_limits, merger_mix, IPM_likelihood(merger_srcs,obs,obsl, bg_scores, merger_mix),[""])
 
-    merger_target=ICA_PWM_Model("target", accurate_srcs, 0, src_length_limits, accurate_mix, IPM_likelihood(accurate_srcs,obs,obsl,bg_scores,accurate_mix),[""])
+    merger_target=ICA_PWM_Model("target", accurate_srcs, src_length_limits, accurate_mix, IPM_likelihood(accurate_srcs,obs,obsl,bg_scores,accurate_mix),[""])
 
     path=randstring()
     test_record = Model_Record(path, merger_target.log_Li)
