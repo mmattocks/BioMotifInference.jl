@@ -1,12 +1,11 @@
 module BioMotifInference
-    using BioSequences, Distributed, Distributions, Serialization, UnicodePlots
+    using BioBackgroundModels, BioSequences, Distributed, Distributions, Serialization, UnicodePlots
     import DataFrames:DataFrame
     import ProgressMeter: AbstractProgress, Progress, @showprogress, next!, move_cursor_up_while_clearing_lines, printover, durationstring
     import Printf: @sprintf
     import StatsFuns: logaddexp, logsumexp #both are needed as logsumexp for two terms is deprecated
     import Random: rand, seed!, shuffle!
     import Distances: euclidean
-    import BioBackgroundModels: lps
 
     #CONSTANTS GIVING RISE TO IMPLEMENTATION-SPECIFIC SAMPLING EFFECTS
     global TUNING_MEMORY=1500 #number of past function calls to consider when tuning permutation function weights
@@ -38,7 +37,9 @@ module BioMotifInference
     include("utilities/model_display.jl")
     include("utilities/worker_diagnostics.jl")
     include("utilities/ns_progressmeter.jl")
-    include("nested sampler/nested_step.jl")
-    include("nested sampler/converge_ensemble.jl")
+    include("utilities/synthetic_genome.jl")
+    export synthetic_sample
+    include("nested_sampler/nested_step.jl")
+    include("nested_sampler/converge_ensemble.jl")
 
 end # module
