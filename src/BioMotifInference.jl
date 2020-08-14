@@ -24,6 +24,7 @@ module BioMotifInference
     export ICA_PWM_Model
     include("IPM/IPM_likelihood.jl")
     include("IPM/IPM_prior_utilities.jl")
+    assemble_source_priors
     include("ensemble/IPM_Ensemble.jl")
     export IPM_Ensemble, assemble_IPMs
     include("ensemble/ensemble_utilities.jl")
@@ -41,5 +42,6 @@ module BioMotifInference
     export synthetic_sample
     include("nested_sampler/nested_step.jl")
     include("nested_sampler/converge_ensemble.jl")
+    export converge_ensemble!
 
 end # module
