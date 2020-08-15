@@ -47,8 +47,8 @@ function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
             start=time()
             funcidx=rand(filtered_weights)
             permute_func=filtered_funcs[funcidx]
-            permute_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
-            new_m=permute_func(permute_args...)
+            pos_args,kw_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
+            new_m=permute_func(pos_args...;kw_args...)
             push!(call_report,(filteridxs[funcidx],time()-start,new_m.log_Li - e.contour))
 			dupecheck(new_m,m) && new_m.log_Li > e.contour && return new_m, call_report
 		end
@@ -81,8 +81,8 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
                 start=time()
                 funcidx=rand(filtered_weights)
                 permute_func=filtered_funcs[funcidx]
-                permute_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
-                new_m=permute_func(permute_args...)
+                pos_args,kw_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
+                new_m=permute_func(pos_args...;kw_args...)
                 push!(call_report,(filteridxs[funcidx],time()-start,new_m.log_Li - e.contour))
 				dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; model_ctr=1; break)
 			end
@@ -105,28 +105,32 @@ end
                 end
 
                 function get_permfunc_args(func::Function,e::IPM_Ensemble, m::ICA_PWM_Model, args::Vector{Tuple{Symbol,Any}})
-                    permute_args=[]
+                    pos_args=[]
                     argparts=Base.arg_decl_parts(methods(func).ms[1])
                     argnames=[Symbol(argparts[2][n][1]) for n in 2:length(argparts[2])]
                     for argname in argnames #assemble basic positional arguments from ensemble and model fields
                         if argname == Symbol('m')
-                            push!(permute_args,m)
+                            push!(pos_args,m)
                         elseif argname in fieldnames(IPM_Ensemble)
-                            push!(permute_args,getfield(e,argname))
+                            push!(pos_args,getfield(e,argname))
                         elseif argname in fieldnames(ICA_PWM_Model)
-                            push!(permute_args,getfield(m,argname))
+                            push!(pos_args,getfield(m,argname))
                         else
                             throw(ArgumentError("Positional argument $argname of $func not available in the ensemble or model!"))
                         end
                     end
-
+            
+                    kw_args = NamedTuple()
                     if length(args) > 0 #if there are any keyword arguments to pass
+                        sym=Vector{Symbol}
+                        val=Vector{Any}
                         for arg in args
-                            push!(permute_args,(;arg[1]=>arg[2],)...)
+                            push!(sym, arg[1]); push!(val, arg[2])
                         end
+                        kw_args = (;zip(sym,val)...)
                     end
 
-                    return permute_args
+                    return pos_args, kw_args
                 end
 
                 function dupecheck(new_model, model)
