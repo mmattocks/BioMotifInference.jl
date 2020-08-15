@@ -33,7 +33,7 @@ function tune_weights!(tuner::Permute_Tuner, call_report::Vector{Tuple{Int64,Flo
             tuner.successes[:,funcidx]=update_sucvec!(tuner.successes[:,funcidx],true)
             tuner.tabular_display[funcidx,"Succeed"]+=1
         else
-            tuner.successes[:,funcidx]=update_sucvec!(tuner.successes[:,funcidx],true)
+            tuner.successes[:,funcidx]=update_sucvec!(tuner.successes[:,funcidx],false)
             tuner.tabular_display[funcidx,"Fail"]+=1 
         end
     end
