@@ -85,7 +85,7 @@ end
                     lh_vec = zeros(L)#likelihood vector is one position (0 initialiser) longer than the observation
                     osi_emitting = Vector{Int64}()
                 
-                    @inbounds for i in 2:L #i=1 is ithe lh_vec initializing 0, i=2 is the score of the first background position (ie t=1)
+                    for i in 2:L #i=1 is ithe lh_vec initializing 0, i=2 is the score of the first background position (ie t=1)
                         t=i-1
                         score = lps(lh_vec[i-1], bg_scores[t], cardinality_penalty)
                 
