@@ -53,7 +53,7 @@ end
 
 function update_weights!(t::Permute_Tuner)
     mvels=[mean(t.velocities[:,n]) for n in 1:length(t.functions)]
-    t.tabular_display[!,"Velocity"]=mvels
+    t.tabular_display[!,"Velocity"]=copy(mvels)
 
     any(i->i<0,mvels) && (mvels.+=-minimum(mvels)+1.) #to calculate weights, scale negative values into >1.
     pvec=[mvels[n]*(sum(t.successes[:,n])/length(t.successes[:,n])) for n in 1:length(t.functions)]
