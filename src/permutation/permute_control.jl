@@ -122,7 +122,7 @@ end
 
                     if length(args) > 0 #if there are any keyword arguments to pass
                         for arg in args
-                            push!(permute_args,(;arg[1]=>arg[2]))
+                            push!(permute_args,(;arg[1]=>arg[2]...))
                         end
                     end
 
