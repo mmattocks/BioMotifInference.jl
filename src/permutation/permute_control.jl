@@ -122,8 +122,8 @@ end
             
                     kw_args = NamedTuple()
                     if length(args) > 0 #if there are any keyword arguments to pass
-                        sym=Vector{Symbol}
-                        val=Vector{Any}
+                        sym=Vector{Symbol}()
+                        val=Vector{Any}()
                         for arg in args
                             push!(sym, arg[1]); push!(val, arg[2])
                         end
