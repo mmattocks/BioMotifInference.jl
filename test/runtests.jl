@@ -536,8 +536,8 @@ end
 @testset "Permute tuner" begin
     clmp=.01
     funcvec=[random_decorrelate,fit_mix]
-    instruct=Permute_Instruct(funcvec, [.5,.5],100,100)
-    tuner=Permute_Tuner(instruct,clmp)
+    instruct=Permute_Instruct(funcvec, [.5,.5],100,100,clmp)
+    tuner=Permute_Tuner(instruct)
     @test tuner.weights==instruct.weights
     #need to test update_weights functionality
     #want to supply some fake data to induce a .8 .2 categorical

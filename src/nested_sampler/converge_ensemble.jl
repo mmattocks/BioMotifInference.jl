@@ -1,9 +1,9 @@
-function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), min_func_weight=.01, backup::Tuple{Bool,Integer}=(false,0), verbose::Bool=false, progargs...)
+function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), backup::Tuple{Bool,Integer}=(false,0), verbose::Bool=false, progargs...)
     N = length(e.models)
     log_frac=log(evidence_fraction)
     
     curr_it=length(e.log_Li)
-    tuner = Permute_Tuner(instruction,min_func_weight);
+    tuner = Permute_Tuner(instruction);
     wk_mon = Worker_Monitor([1]);
     meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)
 
@@ -35,7 +35,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
 end
 
     
-function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_pool::Vector{Int64}, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), min_func_weight=.01, backup::Tuple{Bool,<:Integer}=(false,0), verbose::Bool=false, progargs...)
+function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_pool::Vector{Int64}, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), backup::Tuple{Bool,<:Integer}=(false,0), verbose::Bool=false, progargs...)
     N = length(e.models)
     log_frac=log(evidence_fraction)
     
@@ -50,7 +50,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     curr_it=length(e.log_Li)
 
     wk_mon=Worker_Monitor(wk_pool)
-    tuner = Permute_Tuner(instruction,min_func_weight)
+    tuner = Permute_Tuner(instruction)
     meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)
 
     while lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]) >= lps(log_frac,e.log_Zi[end])

@@ -4,13 +4,15 @@ struct Permute_Instruct
     args::AbstractVector{<:AbstractVector{<:Tuple{<:Symbol,<:Any}}}
     model_limit::Integer
     func_limit::Integer
-    Permute_Instruct(funcs,weights,model_limit,func_limit; args=[Vector{Tuple{Symbol,Any}}() for i in 1:length(funcs)])=assert_permute_instruct(funcs,weights,args,model_limit,func_limit) && new(funcs,weights,args,model_limit,func_limit)
+    clamp::AbstractFloat
+    Permute_Instruct(funcs,weights,model_limit,func_limit,clamp=.01; args=[Vector{Tuple{Symbol,Any}}() for i in 1:length(funcs)])=assert_permute_instruct(funcs,weights,args,model_limit,func_limit,clamp) && new(funcs,weights,args,model_limit,func_limit,clamp)
 end
 
-function assert_permute_instruct(funcs,weights,args,model_limit,func_limit)
+function assert_permute_instruct(funcs,weights,args,model_limit,func_limit,clamp)
     !(length(funcs)==length(args)==length(weights)) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights and argument vectors as functions!"))
     model_limit<1 && throw(ArgumentError("Permute_Instruct limit on models to permute must be positive Integer!"))
     func_limit<1 && throw(ArgumentError("Permute_Instruct limit on fuction calls per model permtued must be positive Integer!"))
+    !(1/length(funcs)>=clamp>0) && throw(ArgumentError("Minimum function call probability for tuner (Permute_Instruct clamp) must be a positive float and cannot exceed 1/number of functions to tune."))
     return true
 end
 

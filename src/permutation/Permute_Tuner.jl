@@ -7,9 +7,8 @@ mutable struct Permute_Tuner
     tabular_display::DataFrame
 end
 
-function Permute_Tuner(instruction::Permute_Instruct, clamp::AbstractFloat)
+function Permute_Tuner(instruction::Permute_Instruct)
     nfuncs=length(instruction.funcs)
-    assert_tuner(instruction.funcs, clamp) 
     vels=Dict{Function,Vector{Float64}}()
     succs=Dict{Function,BitVector}()
     funcnames=Vector{String}()
@@ -22,12 +21,9 @@ function Permute_Tuner(instruction::Permute_Instruct, clamp::AbstractFloat)
 
     tabular_display=DataFrame("Function"=>funcnames, "Succeed"=>zeros(Int64,nfuncs), "Fail"=>zeros(Int64, nfuncs),"Velocity"=>ones(nfuncs), "Weights"=>instruction.weights)
 
-    return Permute_Tuner(instruction.funcs,vels,succs,clamp,instruction.weights,tabular_display)
+    return Permute_Tuner(instruction.funcs,vels,succs,instruction.clamp,instruction.weights,tabular_display)
 end
-    
-function assert_tuner(functions, clamp)
-    !(1/length(functions)>=clamp>0) && throw(ArgumentError("Minimum function call probability for tuner must be a positive float and cannot exceed 1/number of functions to tune."))
-end
+
 
 function tune_weights!(tuner::Permute_Tuner, call_report::Vector{Tuple{Int64,Float64,Float64}})
     for call in call_report
