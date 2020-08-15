@@ -541,13 +541,13 @@ end
     @test tuner.weights==instruct.weights
     #need to test update_weights functionality
     #want to supply some fake data to induce a .8 .2 categorical
-    tuner.successes[:,1]=falses(TUNING_MEMORY)
-    tuner.successes[:,2]=falses(TUNING_MEMORY)
-    tuner.successes[1:Int(floor(TUNING_MEMORY*.8)),1].=true
-    tuner.successes[1:Int(floor(TUNING_MEMORY*.2)),2].=true
+    tuner.successes[:,1]=falses(TUNING_MEMORY*instruct.func_limit)
+    tuner.successes[:,2]=falses(TUNING_MEMORY*instruct.func_limit)
+    tuner.successes[1:Int(floor(TUNING_MEMORY*instruct.func_limit*.8)),1].=true
+    tuner.successes[1:Int(floor(TUNING_MEMORY*instruct.func_limit*.2)),2].=true
     update_weights!(tuner)
     @test tuner.weights==[.8,.2]    #check clamping
-    tuner.successes[:,1]=falses(TUNING_MEMORY)
+    tuner.successes[:,1]=falses(TUNING_MEMORY*instruct.func_limit)
     update_weights!(tuner)
     @test tuner.weights==[clmp,1-clmp]
 end

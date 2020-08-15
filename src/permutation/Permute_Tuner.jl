@@ -13,8 +13,8 @@ function Permute_Tuner(instruction::Permute_Instruct, clamp::AbstractFloat)
     vels=Dict{Function,Vector{Float64}}()
     succs=Dict{Function,BitVector}()
     funcnames=Vector{String}()
-    vels=ones(TUNING_MEMORY,nfuncs)
-    succs=trues(TUNING_MEMORY,nfuncs)
+    vels=ones(TUNING_MEMORY*instruction.func_limit,nfuncs)
+    succs=trues(TUNING_MEMORY*instruction.func_limit,nfuncs)
     for (idx,func) in enumerate(instruction.funcs)
         length(instruction.args[idx])>0 ? (kwstr="(+$(length(instruction.args[idx]))kwa)") : (kwstr="")
         push!(funcnames, string(nameof(func),kwstr))
@@ -56,12 +56,8 @@ function update_sucvec!(sucvec, bool)
 end
 
 function update_weights!(t::Permute_Tuner)
-    mvels=zeros(length(t.functions))
-
-    for n in 1:length(t.functions)
-        mvels[n]=mean(t.velocities[:,n])
-        t.tabular_display[n,"Velocity"]=mvels[n]
-    end
+    mvels=[mean(t.velocities[:,n]) for n in 1:length(t.functions)]
+    t.tabular_display[!,"Velocity"]=mvels
 
     any(i->i<0,mvels) && (mvels.+=-minimum(mvels)+1.) #to calculate weights, scale negative values into >1.
     pvec=[mvels[n]*(sum(t.successes[:,n])/length(t.successes[:,n])) for n in 1:length(t.functions)]
