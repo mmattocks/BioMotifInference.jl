@@ -28,6 +28,7 @@ function permute_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs
     new_log_Li=-Inf;  iterate = 1
     T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_mix=falses(size(m.mix_matrix))
+    fit_mix in m.permute_blacklist ? (new_bl=m.permute_blacklist) : (new_bl=Vector{Function}())
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
     dirty=false
@@ -47,7 +48,7 @@ function permute_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs
         iterate += 1
     end
 
-    return ICA_PWM_Model("candidate","PM from $(m.name)", m.sources, m.source_length_limits, new_mix, new_log_Li) #no consolidate check is necessary as sources havent changed
+    return ICA_PWM_Model("candidate","PM from $(m.name)", m.sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check is necessary as sources havent changed
 end
 
 function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat},contour::AbstractFloat,  source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, remote=false)
@@ -145,7 +146,7 @@ function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
         
         clean[new_mix[:,s]].=false #mark dirty any obs that start with the source
         new_sources[s] = merger_m.sources[merge_s] #copy the source
-        new_mix[:,s] = merger_m.mix_matrix[:,merge_s] #copy the mixvector (without whichj the source will likely be highly improbable)
+        new_mix[:,s] = merger_m.mix_matrix[:,merge_s] #copy the mixvector (without which the source will likely be highly improbable)
         clean[new_mix[:,s]].=false #mark dirty any obs that end with the source
 
         new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true, cache, clean) #assess likelihood
