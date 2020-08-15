@@ -1,14 +1,14 @@
 struct Permute_Instruct
-    funcs::Vector{Function}
-    weights::Categorical
-    args::Dict{Function,Vector{Tuple{Symbol,Any}}}
+    funcs::AbstractVector{<:Function}
+    weights::AbstractVector{<:AbstractFloat}
+    args::AbstractVector{<:AbstractVector{<:Tuple{<:Symbol,<:Any}}}
     model_limit::Integer
     func_limit::Integer
-    Permute_Instruct(funcs,weights,model_limit,func_limit; args=Dict{Function,Vector{Tuple{Symbol,Any}}}())=assert_permute_instruct(funcs,weights,model_limit,func_limit) && new(funcs,Categorical(weights),args,model_limit,func_limit)
+    Permute_Instruct(funcs,weights,model_limit,func_limit; args=[Vector{Tuple{Symbol,Any}}() for i in 1:length(funcs)])=assert_permute_instruct(funcs,weights,args,model_limit,func_limit) && new(funcs,weights,args,model_limit,func_limit)
 end
 
-function assert_permute_instruct(funcs,weights,model_limit,func_limit)
-    length(funcs)!=length(weights) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights as functions!"))
+function assert_permute_instruct(funcs,weights,args,model_limit,func_limit)
+    !(length(funcs)==length(args)==length(weights)) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights and argument vectors as functions!"))
     model_limit<1 && throw(ArgumentError("Permute_Instruct limit on models to permute must be positive Integer!"))
     func_limit<1 && throw(ArgumentError("Permute_Instruct limit on fuction calls per model permtued must be positive Integer!"))
     return true
@@ -31,17 +31,23 @@ end
 
 
 function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
-    call_report=Vector{Tuple{Function,Float64,Float64}}()
+    call_report=Vector{Tuple{Int64,Float64,Float64}}()
 	for model = 1:instruction.model_limit
 		m_record = rand(e.models)
         m = deserialize(m_record.path)
+
+        filteridxs=findall(p->!in(p,m.permute_blacklist),instruction.funcs)
+        filtered_funcs=instruction.funcs[filteridxs]
+        filtered_weights=filter_weights(instruction.weights, filteridxs)
+        filtered_args=instruction.args[filteridxs]
+
         for call in 1:instruction.func_limit
             start=time()
-            permute_func=instruction.funcs[rand(instruction.weights)]
-            permute_args=get_permfunc_args(permute_func,e,m,instruction.args)
+            funcidx=rand(filtered_weights)
+            permute_func=filtered_funcs[funcidx]
+            permute_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
             new_m=permute_func(permute_args...)
-            push!(call_report,(permute_func,time()-start,new_m.log_Li - e.contour))
-
+            push!(call_report,(filteridxs[funcidx],time()-start,new_m.log_Li - e.contour))
 			dupecheck(new_m,m) && new_m.log_Li > e.contour && return new_m, call_report
 		end
 	end
@@ -58,17 +64,24 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
         e.models, e.contour, instruction = fetch(job_chan)
         instruction === nothing && (persist=false) && break
 
-        call_report=Vector{Tuple{Function,Float64,Float64}}()
+        call_report=Vector{Tuple{Int64,Float64,Float64}}()
         for model=1:instruction.model_limit
 			found::Bool=false
 			m_record = rand(e.models)
             m = remotecall_fetch(deserialize,1,m_record.path)
+
+            filteridxs=findall(p->!in(p,m.permute_blacklist),instruction.funcs)
+            filtered_funcs=instruction.funcs[filteridxs]
+            filtered_weights=filter_weights(instruction.weights, filteridxs)
+            filtered_args=instruction.args[filteridxs]
+
             for call in 1:instruction.func_limit
                 start=time()
-                permute_func=instruction.funcs[rand(instruction.weights)]
-                permute_args=get_permfunc_args(permute_func,e,m,instruction.args)
+                funcidx=rand(filtered_weights)
+                permute_func=filtered_funcs[funcidx]
+                permute_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
                 new_m=permute_func(permute_args...)
-                push!(call_report,(permute_func,time()-start,new_m.log_Li - e.contour))
+                push!(call_report,(filteridxs[funcidx],time()-start,new_m.log_Li - e.contour))
 				dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; model_ctr=1; break)
 			end
             found==true && break;
@@ -79,8 +92,17 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
 		end
 	end
 end
+                function filter_weights(weights, idxs)
+                    deplete=0.
+                    for (i, weight) in enumerate(weights)
+                        !in(i, idxs) && (deplete+=weight)
+                    end
+                    weights[idxs].+=deplete/length(idxs)
+                    new_weights=weights[idxs]./sum(weights[idxs])
+                    return Categorical(new_weights)
+                end
 
-                function get_permfunc_args(func::Function,e::IPM_Ensemble, m::ICA_PWM_Model, argdict::Dict{Function,Vector{Tuple{Symbol,Any}}})
+                function get_permfunc_args(func::Function,e::IPM_Ensemble, m::ICA_PWM_Model, args::Vector{Tuple{Symbol,Any}})
                     permute_args=[]
                     argparts=Base.arg_decl_parts(methods(func).ms[1])
                     argnames=[Symbol(argparts[2][n][1]) for n in 2:length(argparts[2])]
@@ -96,10 +118,9 @@ end
                         end
                     end
 
-                    if func in keys(argdict) #add keyword arguments from supplied dict
-                        kw_argvec=argdict[func]
-                        for kw_arg in kw_argvec
-                            push!(permute_args,(;kw_arg[1]=>kw_arg[2])...)
+                    if length(args) > 0 #if there are any keyword arguments to pass
+                        for arg in args
+                            push!(permute_args,(;arg[1]=>arg[2])...)
                         end
                     end
 

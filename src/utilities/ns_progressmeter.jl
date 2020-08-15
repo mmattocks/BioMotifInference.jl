@@ -39,6 +39,7 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
                                wm::Worker_Monitor,
                                tuner::Permute_Tuner,
                                log_frac::AbstractFloat,
+                               func_limit::Integer,
                                interval::T;
                                dt::Real=0.1,
                                desc::AbstractString="Nested Sampling::",
@@ -84,14 +85,14 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
          liwi_disp,
          src_disp,
          nsrcs,
-         zeros(CONVERGENCE_MEMORY))
+         zeros(CONVERGENCE_MEMORY*func_limit))
     end
 end
 
-function ProgressNS(e::IPM_Ensemble, wm::Worker_Monitor, tuner::Permute_Tuner, interval::Real, log_frac::AbstractFloat; dt::Real=0.1, desc::AbstractString="Nested Sampling::", color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, wk_disp::Bool=false, tuning_disp::Bool=false, conv_plot::Bool=true, lh_disp::Bool=false, liwi_disp::Bool=false, ens_disp::Bool=false, src_disp::Bool=true, nsrcs=0)
+function ProgressNS(e::IPM_Ensemble, wm::Worker_Monitor, tuner::Permute_Tuner, interval::Real, log_frac::AbstractFloat, func_limit::Integer; dt::Real=0.1, desc::AbstractString="Nested Sampling::", color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, wk_disp::Bool=false, tuning_disp::Bool=false, conv_plot::Bool=true, lh_disp::Bool=false, liwi_disp::Bool=false, ens_disp::Bool=false, src_disp::Bool=true, nsrcs=0)
     top_m = deserialize(e.models[findmax([model.log_Li for model in e.models])[2]].path)
     
-    return ProgressNS{typeof(interval)}(e, top_m, wm, tuner, log_frac, interval, dt=dt, desc=desc, color=color, output=output, offset=offset, start_it=start_it, wk_disp=wk_disp, tuning_disp=tuning_disp, conv_plot=conv_plot, lh_disp=lh_disp, liwi_disp=liwi_disp, ens_disp=ens_disp, src_disp=src_disp, nsrcs=nsrcs)
+    return ProgressNS{typeof(interval)}(e, top_m, wm, tuner, log_frac, func_limit, interval, dt=dt, desc=desc, color=color, output=output, offset=offset, start_it=start_it, wk_disp=wk_disp, tuning_disp=tuning_disp, conv_plot=conv_plot, lh_disp=lh_disp, liwi_disp=liwi_disp, ens_disp=ens_disp, src_disp=src_disp, nsrcs=nsrcs)
 end
 
 
@@ -171,7 +172,7 @@ end
                     p.wk_disp && (wklines=show(p.output, p.wm, progress=true);println())
                     p.tuning_disp && (tunelines=show(p.output, p.tuner, progress=true);println())
                     if p.conv_plot
-                        ciplot=lineplot([p.counter-499:p.counter...], p.convergence_history, title="Convergence Interval Recent History", xlabel="Iterate",ylabel="CI", color=:yellow)
+                        ciplot=lineplot([p.counter-(length(p.convergence_history)-1):p.counter...], p.convergence_history, title="Convergence Interval Recent History", xlabel="Iterate",ylabel="CI", color=:yellow)
                         cilines=nrows(ciplot.graphics)+5
                         show(p.output, ciplot); println()
                     end

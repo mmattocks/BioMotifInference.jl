@@ -3,9 +3,6 @@ function consolidate_srcs(con_idxs::Dict{Integer,Vector{Integer}}, m::ICA_PWM_Mo
     new_log_Li=-Inf;  iterate = 1
     T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
-    flags=deepcopy(m.flags); flags[1]="consolidate from $(m.name)"
-    "nofit" in flags && deleteat!(flags, findfirst(isequal("nofit"), flags))
-
     a, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
 
     while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
@@ -45,7 +42,7 @@ function consolidate_srcs(con_idxs::Dict{Integer,Vector{Integer}}, m::ICA_PWM_Mo
         iterate += 1
     end
 
-    return ICA_PWM_Model("candidate",new_sources, m.source_length_limits, new_mix, new_log_Li,flags)
+    return ICA_PWM_Model("candidate","consolidated $(m.origin)", new_sources, m.source_length_limits, new_mix, new_log_Li)
 end
 
 function consolidate_check(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}; thresh=.035)

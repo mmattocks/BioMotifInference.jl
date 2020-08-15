@@ -326,9 +326,9 @@ end
 
     distance_model = [(log.(src_TTAC),0),(log.(src_CAG),0),(log.(src_GCA),0)]
 
-    c1model = ICA_PWM_Model("c1", consolidate_one, 3:4, cons_one_mix, IPM_likelihood(consolidate_one, obs, obsl, bg_scores, cons_one_mix),[""])
-    c2model = ICA_PWM_Model("c2", consolidate_two, 3:4, cons_two_mix, IPM_likelihood(consolidate_two, obs, obsl, bg_scores, cons_two_mix),[""])
-    dmodel = ICA_PWM_Model("d", distance_model, 3:4, trues(3,3), IPM_likelihood(distance_model, obs, obsl, bg_scores, trues(3,3)),[""])
+    c1model = ICA_PWM_Model("c1", "c1", consolidate_one, 3:4, cons_one_mix, IPM_likelihood(consolidate_one, obs, obsl, bg_scores, cons_one_mix))
+    c2model = ICA_PWM_Model("c2", "c2", consolidate_two, 3:4, cons_two_mix, IPM_likelihood(consolidate_two, obs, obsl, bg_scores, cons_two_mix))
+    dmodel = ICA_PWM_Model("d", "d", distance_model, 3:4, trues(3,3), IPM_likelihood(distance_model, obs, obsl, bg_scores, trues(3,3)))
 
     dpath=randstring()
     serialize(dpath, dmodel)
@@ -353,7 +353,7 @@ end
     @test all(c1consmod.mix_matrix[:,1])
     @test c1consmod.sources[1][1]==log.(src_ATG)
     @test c1consmod.sources[3][1]!=log.(src_ATG)
-    @test c1consmod.flags==["consolidate from c1"]
+    @test c1consmod.origin=="consolidated c1"
 
     _,con_idxs=consolidate_check(consolidate_two)
     c2consmod=consolidate_srcs(con_idxs, c2model, obs, obsl, bg_scores, drec.log_Li, [drec])
@@ -364,7 +364,7 @@ end
     @test c2consmod.sources[1][1]==log.(src_ATG)
     @test c2consmod.sources[2][1]!=log.(src_ATG)
     @test c2consmod.sources[3][1]!=log.(src_ATG)
-    @test c2consmod.flags==["consolidate from c2"]
+    @test c2consmod.origin=="consolidated c2"
 
     rm(dpath)
 end
@@ -403,42 +403,42 @@ end
     @test ps_model.log_Li > test_model.log_Li
     @test ps_model.sources != test_model.sources
     @test ps_model.mix_matrix == test_model.mix_matrix
-    @test "PS from test" in ps_model.flags
+    @test ps_model.origin == "PS from test"
 
     pm_model= permute_mix(test_model, obs, obsl, bg_scores, test_model.log_Li, iterates=1000)
     @test pm_model.log_Li > test_model.log_Li
     @test pm_model.sources == test_model.sources
     @test pm_model.mix_matrix != test_model.mix_matrix
-    @test "PM from test" in pm_model.flags
+    @test "PM from test" == pm_model.origin
 
     psfm_model=perm_src_fit_mix(test_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors,  iterates=1000)
     @test psfm_model.log_Li > test_model.log_Li
     @test psfm_model.sources != test_model.sources
     @test psfm_model.mix_matrix != test_model.mix_matrix
-    @test "PSFM from test" in psfm_model.flags
+    @test "PSFM from test" == psfm_model.origin
 
     fm_model=fit_mix(test_model,obs,obsl,bg_scores)
     @test fm_model.log_Li > test_model.log_Li
     @test fm_model.sources == test_model.sources
     @test fm_model.mix_matrix != test_model.mix_matrix
-    @test "FM from test" in fm_model.flags
-    @test "nofit" in fm_model.flags
+    @test "FM from test" == fm_model.origin
+    @test fit_mix in fm_model.permute_blacklist
 
     post_fm_psfm=perm_src_fit_mix(fm_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
-    @test "PSFM from candidate" in post_fm_psfm.flags
-    @test "nofit" in post_fm_psfm.flags
+    @test "PSFM from candidate" == post_fm_psfm.origin
+    @test fit_mix in post_fm_psfm.permute_blacklist
 
     rd_model=random_decorrelate(test_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
     @test rd_model.log_Li > test_model.log_Li
     @test rd_model.sources != test_model.sources
     @test rd_model.mix_matrix != test_model.mix_matrix
-    @test "RD from test" in rd_model.flags
+    @test "RD from test" == rd_model.origin
 
     rs_model=reinit_src(test_model, Vector{Model_Record}(),obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000)
     @test rs_model.log_Li > test_model.log_Li
     @test rs_model.sources != test_model.sources
     @test rs_model.mix_matrix != test_model.mix_matrix
-    @test "RS from test" in rs_model.flags
+    @test "RS from test" == rs_model.origin
 
     erosion_sources=[(log.(source_pwm),1),(log.(source_pwm_2),1),(log.(pwm_to_erode),1)]
 
@@ -446,13 +446,13 @@ end
 
     erosion_lh=IPM_likelihood(erosion_sources,obs,obsl, bg_scores, eroded_mix)
 
-    erosion_model=ICA_PWM_Model("erode", erosion_sources, test_model.source_length_limits,eroded_mix, erosion_lh, [""])
+    erosion_model=ICA_PWM_Model("erode", "", erosion_sources, test_model.source_length_limits,eroded_mix, erosion_lh)
 
     eroded_model=erode_model(erosion_model, Vector{Model_Record}(), obs, obsl, bg_scores, erosion_model.log_Li)
     @test eroded_model.log_Li > erosion_model.log_Li
     @test eroded_model.sources != erosion_model.sources
     @test eroded_model.mix_matrix == erosion_model.mix_matrix
-    @test "EM from erode" in eroded_model.flags
+    @test "EM from erode" == eroded_model.origin
     @test eroded_model.sources[1]==erosion_model.sources[1]
     @test eroded_model.sources[2]==erosion_model.sources[2]
     @test eroded_model.sources[3]!=erosion_model.sources[3]
@@ -485,9 +485,9 @@ end
     accurate_mix=BitMatrix([true false false
     true true false])
 
-    merger_base=ICA_PWM_Model("merge", merger_srcs,src_length_limits, merger_mix, IPM_likelihood(merger_srcs,obs,obsl, bg_scores, merger_mix),[""])
+    merger_base=ICA_PWM_Model("merge", "", merger_srcs,src_length_limits, merger_mix, IPM_likelihood(merger_srcs,obs,obsl, bg_scores, merger_mix))
 
-    merger_target=ICA_PWM_Model("target", accurate_srcs, src_length_limits, accurate_mix, IPM_likelihood(accurate_srcs,obs,obsl,bg_scores,accurate_mix),[""])
+    merger_target=ICA_PWM_Model("target", "", accurate_srcs, src_length_limits, accurate_mix, IPM_likelihood(accurate_srcs,obs,obsl,bg_scores,accurate_mix))
 
     path=randstring()
     test_record = Model_Record(path, merger_target.log_Li)
@@ -500,7 +500,7 @@ end
     for (n,src) in enumerate(dm_model.sources)
         @test (dm_model.sources[n]==merger_base.sources[n]) || (dm_model.sources[n]==merger_target.sources[distance_dict[n]])
     end
-    @test "DM from merge" in dm_model.flags
+    @test "DM from merge" == dm_model.origin
 
     sm_model=similarity_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000)
     @test sm_model.log_Li > merger_base.log_Li
@@ -508,7 +508,7 @@ end
     for (n,src) in enumerate(dm_model.sources)
         @test (sm_model.sources[n]==merger_base.sources[n]) || (sm_model.sources[n]==merger_target.sources[n])
     end
-    @test "SM from merge" in sm_model.flags
+    @test "SM from merge" == sm_model.origin
 
     testwk=addprocs(1)[1]
     @everywhere import BioMotifInference
@@ -519,7 +519,7 @@ end
     for (n,src) in enumerate(ddm_model.sources)
         @test (ddm_model.sources[n]==merger_base.sources[n]) || (ddm_model.sources[n]==merger_target.sources[distance_dict[n]])
     end
-    @test ("DM from merge" in ddm_model.flags)
+    @test "DM from merge" == ddm_model.origin
 
     dsm_model=remotecall_fetch(similarity_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000, remote=true)
     @test dsm_model.log_Li > merger_base.log_Li
@@ -527,7 +527,7 @@ end
     for (n,src) in enumerate(dm_model.sources)
         @test (dsm_model.sources[n]==merger_base.sources[n]) || (dsm_model.sources[n]==merger_target.sources[n])
     end
-    @test "SM from merge" in dsm_model.flags
+    @test "SM from merge" == dsm_model.origin
     
     rmprocs(testwk)
     rm(path)
@@ -541,18 +541,15 @@ end
     @test tuner.weights==instruct.weights
     #need to test update_weights functionality
     #want to supply some fake data to induce a .8 .2 categorical
-    tuner.velocities[random_decorrelate]=[1. for i in 1:TUNING_MEMORY]
-    tuner.velocities[fit_mix]=[1. for i in 1:TUNING_MEMORY]
-    tuner.successes[random_decorrelate]=falses(TUNING_MEMORY)
-    tuner.successes[fit_mix]=falses(TUNING_MEMORY)
-    tuner.successes[random_decorrelate][1:Int(floor(TUNING_MEMORY*.8))].=true
-    tuner.successes[fit_mix][1:Int(floor(TUNING_MEMORY*.2))].=true
+    tuner.successes[:,1]=falses(TUNING_MEMORY)
+    tuner.successes[:,2]=falses(TUNING_MEMORY)
+    tuner.successes[1:Int(floor(TUNING_MEMORY*.8)),1].=true
+    tuner.successes[1:Int(floor(TUNING_MEMORY*.2)),2].=true
     update_weights!(tuner)
-    @test tuner.weights==Categorical([.8,.2])
-    #check clamping
-    tuner.successes[random_decorrelate]=falses(TUNING_MEMORY)
+    @test tuner.weights==[.8,.2]    #check clamping
+    tuner.successes[:,1]=falses(TUNING_MEMORY)
     update_weights!(tuner)
-    @test tuner.weights==Categorical([clmp,1-clmp])
+    @test tuner.weights==[clmp,1-clmp]
 end
 
 @testset "Ensemble assembly and nested sampling functions" begin

@@ -5,7 +5,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
     curr_it=length(e.log_Li)
     tuner = Permute_Tuner(instruction,min_func_weight);
     wk_mon = Worker_Monitor([1]);
-    meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)
+    meter = ProgressNS(e, wk_mon, tuner, 0., log_frac, instruction.func_limit; start_it=curr_it, progargs...)
 
 
     while (lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]) >= lps(log_frac,e.log_Zi[end])) && (curr_it <= max_iterates)
@@ -51,7 +51,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
 
     wk_mon=Worker_Monitor(wk_pool)
     tuner = Permute_Tuner(instruction,min_func_weight)
-    meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)
+    meter = ProgressNS(e, wk_mon, tuner, 0., log_frac, instruction.func_limit; start_it=curr_it, progargs...)
 
     while lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]) >= lps(log_frac,e.log_Zi[end])
         #REMOVE OLD LEAST LIKELY MODEL - perform here to spare all workers the same calculations
