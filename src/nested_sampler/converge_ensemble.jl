@@ -18,6 +18,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         instruction = tune_instruction(tuner, instruction)
 
         backup[1] && curr_it%backup[2] == 0 && serialize(string(e.path,'/',"ens"), e) #every backup interval, serialise the ensemble
+        backup[1] && curr_it%backup[2] == 0 && !e.sample_posterior && clean_ensemble_dir(e) #every backup interval, clean up discarded samples if not being retained for posterior
 
         update!(meter,lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]),lps(log_frac,e.log_Zi[end]))        
     end
@@ -53,7 +54,9 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     tuner = Permute_Tuner(instruction)
     meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)
 
-    while lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]) >= lps(log_frac,e.log_Zi[end])
+    #while lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]) >= lps(log_frac,e.log_Zi[end])
+    while (lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]) >= lps(log_frac,e.log_Zi[end])) && (curr_it <= max_iterates)
+
         #REMOVE OLD LEAST LIKELY MODEL - perform here to spare all workers the same calculations
         e.contour, least_likely_idx = findmin([model.log_Li for model in e.models])
         Li_model = e.models[least_likely_idx]
@@ -68,6 +71,8 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         instruction = tune_instruction(tuner, instruction) 
         take!(job_chan); put!(job_chan,(e.models,e.contour,instruction))
         backup[1] && curr_it%backup[2] == 0 && serialize(string(e.path,'/',"ens"), e) #every backup interval, serialise the ensemble
+        backup[1] && curr_it%backup[2] == 0 && !e.sample_posterior && clean_ensemble_dir(e) #every backup interval, clean up discarded samples if not being retained for posterior
+    
         update!(meter, lps(findmax([model.log_Li for model in e.models])[1], e.log_Xi[end]), lps(log_frac,e.log_Zi[end]))
     end
 

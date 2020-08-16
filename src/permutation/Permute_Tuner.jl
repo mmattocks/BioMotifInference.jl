@@ -58,17 +58,23 @@ function update_weights!(t::Permute_Tuner)
     any(i->i<0,mvels) && (mvels.+=-minimum(mvels)+1.) #to calculate weights, scale negative values into >1.
     pvec=[mvels[n]*(sum(t.successes[:,n])/length(t.successes[:,n])) for n in 1:length(t.functions)]
     pvec./=sum(pvec)
-    any(i->i<t.minimum_clamp,pvec) && clamp_pvec(pvec,t.minimum_clamp)
+    any(i->i<t.minimum_clamp,pvec) && clamp_pvec!(pvec,t.minimum_clamp)
 
     isprobvec(pvec) && (t.weights=pvec)
     t.tabular_display[!,"Weights"]=pvec
 end
-            function clamp_pvec(pvec, clamp)
-                vals_to_clamp=findall(i->i<clamp, pvec)
-                vals_to_deplete=findall(i->i>clamp, pvec)
-                pvec[vals_to_clamp].=clamp
-                pvec[vals_to_deplete].-=length(vals_to_clamp)*clamp/length(vals_to_deplete)
+            function clamp_pvec!(pvec, clamp)
+                clamped=false
+                while !clamped
+                    vals_to_clamp=findall(i->i<clamp, pvec)
+                    vals_to_deplete=findall(i->i>clamp, pvec)
+                    pvec[vals_to_clamp].=clamp
+                    pvec[vals_to_deplete].-=length(vals_to_clamp)*clamp/length(vals_to_deplete)
+                    !any(i->i<clamp,pvec)&&(clamped=true)
+                end
             end
+
+
 
 
 function tune_instruction(tuner::Permute_Tuner, i::Permute_Instruct)

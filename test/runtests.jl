@@ -566,39 +566,16 @@ end
     .1 .2 .6 .1]
 
     src_length_limits=2:12
-    no_sources=4
+    no_sources=3
 
     source_priors = assemble_source_priors(no_sources, [source_pwm, source_pwm_2])
     mix_prior=.5
 
-    bg_scores = log.(fill(.1, (30,27)))
+    bg_scores = log.(fill(.1, (30,4)))
     obs=[BioSequences.LongSequence{DNAAlphabet{2}}("CCGTTGACGATGTGATGAATAATGAAAGAA")
     BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATGATGACCGTTGACCAGATGGATG")
     BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATGATGACCCCGATTTTGAAAAAAA")
     BioSequences.LongSequence{DNAAlphabet{2}}("TCATCATGCTGATGATGAATCAGATGAAAG")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TGATGAATCTGACCCAGATGCCGATTTTGA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATTTTGATCAGGATGAATAAAGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATGGGCTGATGAACCGTTGACGATGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATCCTGCTGACCCCGATTTCAGTGAAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TGATGAATAAAGTCATCCTGCATGTGAAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCGTTGACGATGTGATGAATGATAAAGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATGATGACCGATGTTGACGATGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATGATGAATGCCCCGATTTTGAAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATCATGCTGATGATGAATAAAGAAAAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TGATGAATCTGACCCCGATCAGTTTGAAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATTTTGATCAGATGGATGAATAAAG")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATGGGCTGAACCGTTGACAGCGATGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATCCTGCTCAGGACCCCGATTTTATGGA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TGATGAATCAGAAAGTCATCCTGCATGTGA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCGTTGACCAGGATGTGATGAATAAAGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATGATGCAGACCGTTGACGATGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATGACAGTGACCCAGCCGATTTTGA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATCATGCTGAATGTGATGAATAAAAAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TGATGATGAATCTGAATGCCCCGATTTTGA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("CCCCGATATGTTTGATGACAGTGAATAAAG")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCATGATGGGCTGAACCGTTGACGATGAAA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TCACAGTCCTGCTGACCCCGATTATGTTGA")
-    BioSequences.LongSequence{DNAAlphabet{2}}("TGATGATGAATAAAGTCATGATCCTGCTGA")
     ]
     
     order_seqs = BioBackgroundModels.get_order_n_seqs(obs, 0)
@@ -612,12 +589,12 @@ end
 
     @test length(ensemble.models) == 200
     for model in ensemble.models
-        @test -1950 < model.log_Li < -1200
+        @test -350 < model.log_Li < -150
     end
 
     @test length(sp_ensemble.models) == 200
     for model in sp_ensemble.models
-        @test -1950 < model.log_Li < -1200
+        @test -350 < model.log_Li < -150
     end
 
     assembler=addprocs(1)
@@ -629,23 +606,25 @@ end
 
     @test length(dist_ensemble.models) == 200
     for model in ensemble.models
-        @test -1950 < model.log_Li < -1200
+        @test -350 < model.log_Li < -150
     end
 
     rmprocs(assembler)
     rm(distdir, recursive=true)
 
-    instruct = Permute_Instruct(full_perm_funcvec, ones(length(full_perm_funcvec))./length(full_perm_funcvec),600,900)
-
+    models_to_permute = 600
+    funclimit=200
+    funcvec=full_perm_funcvec
+    
+    instruct = Permute_Instruct(funcvec, ones(length(funcvec))./length(funcvec),models_to_permute,200, .02)
+    
     @info "Testing convergence displays..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000., wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=3)
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000.,  wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=50)
 
     sp_ensemble=reset_ensemble(sp_ensemble)
 
-
     @info "Testing threaded convergence..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
-
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
     @test length(sp_ensemble.models) == 200
     @test length(sp_ensemble.log_Li) == length(sp_ensemble.log_Xi) == length(sp_ensemble.log_wi) == length(sp_ensemble.log_Liwi) == length(sp_ensemble.log_Zi) == length(sp_ensemble.Hi) == sp_ensemble.model_counter-200
     for i in 1:length(sp_ensemble.log_Li)-1
@@ -662,7 +641,7 @@ end
     @everywhere using BioMotifInference
 
     ####CONVERGE############
-    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 50000000000., backup=(true,250), wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
+    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 50000000000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
 
     rmprocs(worker_pool)
 

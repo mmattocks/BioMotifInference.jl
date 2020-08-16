@@ -1,3 +1,10 @@
+function clean_ensemble_dir(e::IPM_Ensemble)
+    e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
+    for file in readdir(e.path)
+        !(file in vcat([basename(model.path) for model in e.models],"ens")) && rm(e.path*'/'*file)
+    end
+end
+
 function reset_ensemble(e::IPM_Ensemble)
     new_e=deepcopy(e)
     for i in 1:length(e.models)

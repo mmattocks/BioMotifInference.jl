@@ -31,8 +31,11 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
     liwi_disp::Bool
     src_disp::Bool
     no_displayed_srcs::Integer
+
+    disp_rotate_inst::Vector{Any}
     
     convergence_history::Vector{Float64}
+    time_history::Vector{Float64}
 
     function ProgressNS{T}(    e::IPM_Ensemble,
                                top_m::ICA_PWM_Model,
@@ -53,7 +56,8 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
                                lh_disp::Bool=false,
                                liwi_disp::Bool=false,
                                src_disp::Bool=true,
-                               nsrcs::Integer=0) where T
+                               nsrcs::Integer=0,
+                               disp_rotate_inst=[false,0,0,Vector{Vector{Symbol}}()]) where T
         tfirst = tlast = time()
         printed = false
         new{T}(interval,
@@ -84,28 +88,31 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
          liwi_disp,
          src_disp,
          nsrcs,
+         disp_rotate_inst,
+         zeros(CONVERGENCE_MEMORY),
          zeros(CONVERGENCE_MEMORY))
     end
 end
 
-function ProgressNS(e::IPM_Ensemble, wm::Worker_Monitor, tuner::Permute_Tuner, interval::Real, log_frac::AbstractFloat; dt::Real=0.1, desc::AbstractString="Nested Sampling::", color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, wk_disp::Bool=false, tuning_disp::Bool=false, conv_plot::Bool=true, lh_disp::Bool=false, liwi_disp::Bool=false, ens_disp::Bool=false, src_disp::Bool=true, nsrcs=0)
+function ProgressNS(e::IPM_Ensemble, wm::Worker_Monitor, tuner::Permute_Tuner, interval::Real, log_frac::AbstractFloat; dt::Real=0.1, desc::AbstractString="Nested Sampling::", color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, wk_disp::Bool=false, tuning_disp::Bool=false, conv_plot::Bool=true, lh_disp::Bool=false, liwi_disp::Bool=false, ens_disp::Bool=false, src_disp::Bool=true, nsrcs=0, disp_rotate_inst::Vector{Any}=[false,0,0,Vector{Vector{Symbol}}()])   
     top_m = deserialize(e.models[findmax([model.log_Li for model in e.models])[2]].path)
     
-    return ProgressNS{typeof(interval)}(e, top_m, wm, tuner, log_frac, interval, dt=dt, desc=desc, color=color, output=output, offset=offset, start_it=start_it, wk_disp=wk_disp, tuning_disp=tuning_disp, conv_plot=conv_plot, lh_disp=lh_disp, liwi_disp=liwi_disp, ens_disp=ens_disp, src_disp=src_disp, nsrcs=nsrcs)
+    return ProgressNS{typeof(interval)}(e, top_m, wm, tuner, log_frac, interval, dt=dt, desc=desc, color=color, output=output, offset=offset, start_it=start_it, wk_disp=wk_disp, tuning_disp=tuning_disp, conv_plot=conv_plot, lh_disp=lh_disp, liwi_disp=liwi_disp, ens_disp=ens_disp, src_disp=src_disp, nsrcs=nsrcs, disp_rotate_inst=disp_rotate_inst)
 end
 
 
 function update!(p::ProgressNS, val, thresh; options...)
     p.counter += 1
-    stps_elapsed=p.counter-p.start_it
+    
     p.tstp=time()-p.tlast
-    p.mean_stp_time=(p.tlast-p.tfirst)/stps_elapsed
+    popfirst!(p.time_history)
+    push!(p.time_history, p.tstp)
 
     p.interval = val - thresh
     popfirst!(p.convergence_history)
     push!(p.convergence_history, p.interval)    
 
-    p.top_m=deserialize(p.e.models[findmax([model.log_Li for model in p.e.models])[2]].path)
+    p.top_m.name != basename(p.e.models[findmax([model.log_Li for model in p.e.models])[2]].path) && (p.top_m=deserialize(p.e.models[findmax([model.log_Li for model in p.e.models])[2]].path))
 
     updateProgress!(p; options...)
 end
@@ -113,6 +120,8 @@ end
 function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offset == 0))
     p.offset = offset
     t = time()
+    p.disp_rotate_inst[1] && p.counter%p.disp_rotate_inst[2] == 0 && rotate_displays(p)
+
     if p.interval <= 0 && !p.triggered
         p.triggered = true
         if p.printed
@@ -138,7 +147,7 @@ function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offs
     end
 
     if t > p.tlast+p.dt && !p.triggered
-        msg = @sprintf "%s Iterate: %s Step time μ: %s Convergence Interval: %g\n" p.desc p.counter hmss(p.mean_stp_time) p.interval
+        msg = @sprintf "%s Iterate: %s Recent step time μ: %s Convergence Interval: %g\n" p.desc p.counter hmss(mean(p.time_history)) p.interval
 
         print(p.output, "\n" ^ (p.offset + p.numprintedvalues))
         move_cursor_up_while_clearing_lines(p.output, p.numprintedvalues)
@@ -156,6 +165,15 @@ function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offs
         p.printed = true
     end
 end
+                function rotate_displays(p)
+                    curr_inst=p.disp_rotate_inst[3]
+                    curr_inst+1>length(p.disp_rotate_inst[4]) ? next_inst=1 : next_inst=curr_inst+1
+                    next_disps=p.disp_rotate_inst[4][next_inst]
+                    for disp in [:wk_disp,:tuning_disp,:conv_plot,:ens_disp,:lh_disp,:liwi_disp,:src_disp]
+                        disp in next_disps ?  setproperty!(p, disp, true) : setproperty!(p, disp, false)
+                    end
+                    p.disp_rotate_inst[3]=next_inst
+                end
 
                 function hmss(dt)
                     dt<0 ? (dt=-dt; prfx="-") : (prfx="")
@@ -186,8 +204,8 @@ end
                         lhlines=nrows(lhplot.graphics)+5
                         show(p.output, lhplot); println()
                     end
-                    if p.liwi_disp
-                        liwiplot=lineplot(p.e.log_Liwi[2:end], title="Iterate evidentiary weight", xlabel="Iterate", name="Ensemble log Liwi", color=:cyan)
+                    if p.liwi_disp && p.counter>2
+                        liwiplot=lineplot([max(2,p.counter-(CONVERGENCE_MEMORY-1)):p.counter...],p.e.log_Liwi[max(2,end-(CONVERGENCE_MEMORY-1)):end], title="Recent iterate evidentiary weight", xlabel="Iterate", name="Ensemble log Liwi", color=:cyan)
                         liwilines=nrows(liwiplot.graphics)+5
                         show(p.output, liwiplot); println()
                     end
