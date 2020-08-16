@@ -6,7 +6,7 @@ import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors,
 import Distances: euclidean
 
 @info "Beginning tests..."
-
+using Random
 Random.seed!(786)
 O=1000;S=50
 
@@ -387,7 +387,7 @@ end
     src_length_limits=2:5
 
     source_priors = assemble_source_priors(3, [source_pwm, source_pwm_2])
-    mix_prior=0.2
+    mix_prior=.8
 
     bg_scores = log.(fill(.25, (12,2)))
     obs=[BioSequences.LongSequence{DNAAlphabet{2}}("ATGATGATGATG")
@@ -399,7 +399,7 @@ end
 
     test_model = ICA_PWM_Model("test", source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
 
-    ps_model= permute_source(test_model, Vector{Model_Record}(), obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000,weight_shift_freq=1.,length_change_freq=1.)
+    ps_model= permute_source(test_model, Vector{Model_Record}(), obs, obsl, bg_scores, test_model.log_Li, source_priors, iterates=1000,weight_shift_freq=.2,length_change_freq=.2)
     @test ps_model.log_Li > test_model.log_Li
     @test ps_model.sources != test_model.sources
     @test ps_model.mix_matrix == test_model.mix_matrix

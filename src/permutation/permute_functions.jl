@@ -16,8 +16,9 @@ function permute_source(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_arra
 
         weight_shift_freq > 0 && (new_sources[s]=permute_source_weights(new_sources[s], weight_shift_freq, weight_shift_dist))
         rand() < length_change_freq && (new_sources[s]=permute_source_length(new_sources[s], source_priors[s], m.source_length_limits, length_perm_range))
+
         new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true, cache, clean)
-        iterate += 1
+        iterate += 1        
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
