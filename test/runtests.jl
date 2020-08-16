@@ -387,7 +387,7 @@ end
     src_length_limits=2:5
 
     source_priors = assemble_source_priors(3, [source_pwm, source_pwm_2])
-    mix_prior=.8
+    mix_prior=.5
 
     bg_scores = log.(fill(.25, (12,2)))
     obs=[BioSequences.LongSequence{DNAAlphabet{2}}("ATGATGATGATG")
