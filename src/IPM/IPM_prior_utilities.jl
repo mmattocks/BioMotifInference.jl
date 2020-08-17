@@ -45,11 +45,8 @@ function cluster_mix_prior!(df::DataFrame, wms::AbstractVector{<:AbstractMatrix{
     end
     
     represented_sources=unique(df.cluster)
-    wms=wms[represented_sources]
     return mix[:,represented_sources]
 end
-
-
 
 function infocenter_wms_trim(wm::AbstractMatrix{<:AbstractFloat}, trimsize::Integer)
     !(size(wm,2)==4) && throw(DomainError("Bad wm! 2nd dimension should be size 4"))

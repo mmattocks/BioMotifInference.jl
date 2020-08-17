@@ -27,7 +27,7 @@ mutable struct IPM_Ensemble
 end
 
 ####IPM_Ensemble FUNCTIONS
-IPM_Ensemble(path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::AbstractArray{<:Integer}, source_length_limits; posterior_switch::Bool=false) =
 IPM_Ensemble(
 	path,
 	assemble_IPMs(path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
@@ -47,7 +47,7 @@ IPM_Ensemble(
 	no_models+1,
 	IPM_likelihood(init_logPWM_sources(source_priors, source_length_limits), obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores, falses(size(obs)[2],length(source_priors))))
 
-IPM_Ensemble(worker_pool::AbstractVector{<:Integer}, path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::Array{<:Integer}, source_length_limits; posterior_switch::Bool=true) =
+IPM_Ensemble(worker_pool::AbstractVector{<:Integer}, path::String, no_models::Integer, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractMatrix{<:AbstractFloat}, obs::Array{<:Integer}, source_length_limits; posterior_switch::Bool=false) =
 IPM_Ensemble(
 	path,
 	distributed_IPM_assembly(worker_pool, path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
