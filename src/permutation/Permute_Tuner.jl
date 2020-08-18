@@ -9,8 +9,6 @@ end
 
 function Permute_Tuner(instruction::Permute_Instruct)
     nfuncs=length(instruction.funcs)
-    vels=Dict{Function,Vector{Float64}}()
-    succs=Dict{Function,BitVector}()
     funcnames=Vector{String}()
     vels=ones(TUNING_MEMORY*instruction.func_limit,nfuncs)
     succs=trues(TUNING_MEMORY*instruction.func_limit,nfuncs)
