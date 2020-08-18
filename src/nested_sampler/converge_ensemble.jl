@@ -41,12 +41,12 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     N = length(e.models)
     log_frac=log(evidence_fraction)
     
-    model_chan= RemoteChannel(()->Channel{Tuple{Union{ICA_PWM_Model,Nothing},Integer, AbstractVector{<:Tuple}}}(length(wk_pool))) #channel to take EM iterates off of
+    model_chan= RemoteChannel(()->Channel{Tuple{Union{ICA_PWM_Model,Nothing},Integer, AbstractVector{<:Tuple}}}(10*length(wk_pool))) #channel to take EM iterates off of
     job_chan = RemoteChannel(()->Channel{Tuple{<:AbstractVector{<:Model_Record}, Float64, Union{Permute_Instruct,Nothing}}}(1))
     put!(job_chan,(e.models, e.contour, instruction))
 
     for (x,worker) in enumerate(wk_pool)
-        remote_do(permute_IPM, worker, e, job_chan, model_chan)
+        @async remote_do(permute_IPM, worker, e, job_chan, model_chan)
     end
     
     curr_it=length(e.log_Li)
