@@ -70,8 +70,13 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
         call_report=Vector{Tuple{Int64,Float64,Float64}}()
         for model=1:instruction.model_limit
 			found::Bool=false
-			m_record = rand(e.models)
-            m = remotecall_fetch(deserialize,1,m_record.path)
+            m_record = rand(e.models)
+            
+            try #possible that remote models will have been deleted before a worker attempts to fetch;
+                m = remotecall_fetch(deserialize,1,m_record.path)
+            catch #in this case need to break to fetch models again
+                break
+            end
 
             filteridxs=findall(p->!in(p,m.permute_blacklist),instruction.funcs)
             filtered_funcs=instruction.funcs[filteridxs]
