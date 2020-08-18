@@ -98,9 +98,7 @@ function distributed_IPM_assembly(worker_pool::Vector{Int64}, path::String, no_m
     job_chan = RemoteChannel(()->Channel{Union{Tuple,Nothing}}(1))
 	put!(job_chan,(source_priors, mix_prior, bg_scores, obs, source_length_limits))
 	
-    for worker in worker_pool
-        remote_do(worker_assemble, worker, job_chan, model_chan)
-	end
+	sequence_workers(worker_pool, worker_assemble, job_chan, model_chan)
 	
 	assembly_progress=Progress(no_models, desc="Assembling IPM ensemble...")
 
@@ -137,10 +135,11 @@ end
 					return counter
 				end
 
-				function worker_assemble(job_chan::RemoteChannel, models_chan::RemoteChannel) #NEEDS REWRITING, TOO SLOW IN DISTRIBUTED
+				function worker_assemble(job_chan::RemoteChannel, models_chan::RemoteChannel, comms_chan::RemoteChannel)
+					put!(comms_chan,myid())
 					wait(job_chan)
 					params=fetch(job_chan)
-					while !(params === nothing)
+					while !(fetch(job_chan) === nothing)
 						model=ICA_PWM_Model(string(myid()),params...)
 						put!(models_chan,model)
 					end
