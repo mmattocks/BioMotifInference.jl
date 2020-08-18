@@ -18,7 +18,6 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         instruction = tune_instruction(tuner, instruction)
 
         backup[1] && curr_it%backup[2] == 0 && serialize(string(e.path,'/',"ens"), e) #every backup interval, serialise the ensemble
-        backup[1] && curr_it%backup[2] == 0 && !e.sample_posterior && clean_ensemble_dir(e) #every backup interval, clean up discarded samples if not being retained for posterior
 
         update!(meter,lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]),lps(log_frac,e.log_Zi[end]))        
     end
@@ -27,10 +26,12 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
+        serialize(string(e.path,'/',"ens"), e)
         return final_logZ
     elseif curr_it==max_iterates
         @info "Job done, sampled to maximum iterate $max_iterates. Convergence criterion not obtained."
 
+        serialize(string(e.path,'/',"ens"), e)
         return e.log_Zi[end]
     end
 end
@@ -71,7 +72,6 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         instruction = tune_instruction(tuner, instruction) 
         take!(job_chan); put!(job_chan,(e.models,e.contour,instruction))
         backup[1] && curr_it%backup[2] == 0 && serialize(string(e.path,'/',"ens"), e) #every backup interval, serialise the ensemble
-        backup[1] && curr_it%backup[2] == 0 && !e.sample_posterior && clean_ensemble_dir(e) #every backup interval, clean up discarded samples if not being retained for posterior
     
         update!(meter, lps(findmax([model.log_Li for model in e.models])[1], e.log_Xi[end]), lps(log_frac,e.log_Zi[end]))
     end
@@ -82,10 +82,12 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
+        serialize(string(e.path,'/',"ens"), e)
         return final_logZ
     elseif curr_it==max_iterates
         @info "Job done, sampled to maximum iterate $max_iterates. Convergence criterion not obtained."
 
+        serialize(string(e.path,'/',"ens"), e)
         return e.log_Zi[end]
     end
 end

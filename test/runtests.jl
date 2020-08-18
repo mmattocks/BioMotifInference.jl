@@ -585,7 +585,7 @@ end
     ensemble = IPM_Ensemble(ensembledir, 150, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
     ensemble = IPM_Ensemble(ensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits) #test resumption
 
-    sp_ensemble = IPM_Ensemble(spensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits)
+    sp_ensemble = IPM_Ensemble(spensembledir, 200, source_priors, (falses(0,0),mix_prior), bg_scores, obs, src_length_limits, posterior_switch=true)
 
     @test length(ensemble.models) == 200
     for model in ensemble.models
@@ -624,7 +624,7 @@ end
     sp_ensemble=reset_ensemble(sp_ensemble)
 
     @info "Testing threaded convergence..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150))
     @test length(sp_ensemble.models) == 200
     @test length(sp_ensemble.log_Li) == length(sp_ensemble.log_Xi) == length(sp_ensemble.log_wi) == length(sp_ensemble.log_Liwi) == length(sp_ensemble.log_Zi) == length(sp_ensemble.Hi) == sp_ensemble.model_counter-200
     for i in 1:length(sp_ensemble.log_Li)-1

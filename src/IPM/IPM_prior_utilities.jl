@@ -4,8 +4,8 @@ function read_fa_wms_tr(path::String)
     f=open(path)
     for line in eachline(f)
         prefix=line[1:2]
-        prefix == "01" && (wm=transpose([parse(AbstractFloat,i) for i in split(line)[2:end]]))
-        prefix != "01" && prefix != "NA" && prefix != "PO" && prefix != "//" && (wm=vcat(wm, transpose([parse(AbstractFloat,i) for i in split(line)[2:end]])))
+        prefix == "01" && (wm=transpose([parse(Float64,i) for i in split(line)[2:end]]))
+        prefix != "01" && prefix != "NA" && prefix != "PO" && prefix != "//" && (wm=vcat(wm, transpose([parse(Float64,i) for i in split(line)[2:end]])))
         prefix == "//" && push!(wms, wm)
     end
     return wms
