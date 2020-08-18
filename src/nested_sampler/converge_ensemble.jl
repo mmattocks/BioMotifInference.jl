@@ -45,9 +45,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     job_chan = RemoteChannel(()->Channel{Tuple{<:AbstractVector{<:Model_Record}, Float64, Union{Permute_Instruct,Nothing}}}(1))
     put!(job_chan,(e.models, e.contour, instruction))
 
-    for (x,worker) in enumerate(wk_pool)
-        @async remote_do(permute_IPM, worker, e, job_chan, model_chan)
-    end
+    @async sequence_workers(wk_pool, e, model_chan, job_chan)
     
     curr_it=length(e.log_Li)
 

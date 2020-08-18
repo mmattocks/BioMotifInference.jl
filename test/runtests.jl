@@ -2,7 +2,7 @@
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!, clamp_pvec!
 import Distances: euclidean
 
 @info "Beginning tests..."
@@ -550,6 +550,14 @@ end
     tuner.successes[:,1]=falses(TUNING_MEMORY*instruct.func_limit)
     update_weights!(tuner)
     @test tuner.weights==[clmp,1-clmp]
+
+    #more clamping tests
+    testvec=[0.02693244970132842, 0.031512823560878485, 0.050111382705776294, 0.6893314065796903, 0.04206537140157707, 0.02013161919125878, 0.026535815205008566, 0.051758654139053166, 0.03497967993105292, 0.013999262917669668, 0.01264153466670629]
+    target=[0.02527900179828276, 0.029859375657832827, 0.04845793480273063, 0.6876779586766446, 0.040411923498531406, 0.02, 0.02488236730196291, 0.050105206236007505, 0.03332623202800726, 0.02, 0.02]
+
+    clamp_pvec!(testvec,.02)
+    @test isprobvec(testvec)
+    @test testvec==target
 end
 
 @testset "Ensemble assembly and nested sampling functions" begin

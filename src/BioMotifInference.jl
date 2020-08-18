@@ -39,6 +39,7 @@ module BioMotifInference
     include("utilities/worker_diagnostics.jl")
     include("utilities/ns_progressmeter.jl")
     include("utilities/synthetic_genome.jl")
+    include("utilities/worker_sequencer.jl")
     export synthetic_sample
     include("nested_sampler/nested_step.jl")
     include("nested_sampler/converge_ensemble.jl")

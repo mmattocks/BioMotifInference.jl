@@ -66,8 +66,11 @@ end
                 while !clamped
                     vals_to_clamp=findall(i->i<clamp, pvec)
                     vals_to_deplete=findall(i->i>clamp, pvec)
+
+                    depletion=sum([clamp-pvec[val] for val in vals_to_clamp])
                     pvec[vals_to_clamp].=clamp
-                    pvec[vals_to_deplete].-=length(vals_to_clamp)*clamp/length(vals_to_deplete)
+
+                    pvec[vals_to_deplete].-=depletion/length(vals_to_deplete)
                     !any(i->i<clamp,pvec)&&(clamped=true)
                 end
             end

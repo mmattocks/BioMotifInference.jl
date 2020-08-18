@@ -56,10 +56,11 @@ function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
 	return nothing, call_report
 end
 
-function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel) #ensemble.models is partially updated on the worker to populate arguments for permute funcs
+function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel, comms_chan::RemoteChannel) #ensemble.models is partially updated on the worker to populate arguments for permute funcs
 	persist=true
     id=myid()
     model_ctr=1
+    put!(comms_chan,id)
     while persist
         wait(job_chan)
         start=time()
