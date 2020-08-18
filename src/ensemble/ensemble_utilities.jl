@@ -29,3 +29,8 @@ function reset_ensemble(e::IPM_Ensemble)
 
     return new_e
 end
+
+function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct)
+    serialize(string(e.path,'/',"ens"), e)
+    serialize(string(e.path,'/',"inst"), instruction)
+end

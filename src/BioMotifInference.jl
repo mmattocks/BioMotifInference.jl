@@ -27,7 +27,6 @@ module BioMotifInference
     assemble_source_priors
     include("ensemble/IPM_Ensemble.jl")
     export IPM_Ensemble, assemble_IPMs
-    include("ensemble/ensemble_utilities.jl")
     include("permutation/permute_utilities.jl")
     include("permutation/orthogonality_helper.jl")
     include("permutation/permute_functions.jl")
@@ -35,6 +34,7 @@ module BioMotifInference
     include("permutation/permute_control.jl")
     export Permute_Instruct
     include("permutation/Permute_Tuner.jl")
+    include("ensemble/ensemble_utilities.jl")
     include("utilities/model_display.jl")
     include("utilities/worker_diagnostics.jl")
     include("utilities/ns_progressmeter.jl")
