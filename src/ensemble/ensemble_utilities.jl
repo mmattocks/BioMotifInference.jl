@@ -1,3 +1,8 @@
+function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct)
+    serialize(string(e.path,'/',"ens"), e)
+    serialize(string(e.path,'/',"inst"), instruction)
+end
+
 function clean_ensemble_dir(e::IPM_Ensemble)
     e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
     for file in readdir(e.path)
@@ -27,10 +32,8 @@ function reset_ensemble(e::IPM_Ensemble)
 
     new_e.model_counter=length(new_e.models)+1
 
-    return new_e
-end
+    isfile(e.path*"/inst") && rm(e.path*"/inst")
+    serialize(e.path*"/ens", new_e)
 
-function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct)
-    serialize(string(e.path,'/',"ens"), e)
-    serialize(string(e.path,'/',"inst"), instruction)
+    return new_e
 end

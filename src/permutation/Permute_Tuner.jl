@@ -22,7 +22,6 @@ function Permute_Tuner(instruction::Permute_Instruct)
     return Permute_Tuner(instruction.funcs,vels,succs,instruction.clamp,instruction.weights,tabular_display)
 end
 
-
 function tune_weights!(tuner::Permute_Tuner, call_report::Vector{Tuple{Int64,Float64,Float64}})
     for call in call_report
         funcidx,time,distance=call
@@ -74,9 +73,6 @@ end
                     !any(i->i<clamp,pvec)&&(clamped=true)
                 end
             end
-
-
-
 
 function tune_instruction(tuner::Permute_Tuner, i::Permute_Instruct)
     return Permute_Instruct(i.funcs, tuner.weights, i.model_limit, i.func_limit, args=i.args)

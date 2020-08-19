@@ -94,8 +94,16 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
     end
 end
 
-function ProgressNS(e::IPM_Ensemble, wm::Worker_Monitor, tuner::Permute_Tuner, interval::Real, log_frac::AbstractFloat; dt::Real=0.1, desc::AbstractString="Nested Sampling::", color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, wk_disp::Bool=false, tuning_disp::Bool=false, conv_plot::Bool=true, lh_disp::Bool=false, liwi_disp::Bool=false, ens_disp::Bool=false, src_disp::Bool=true, nsrcs=0, disp_rotate_inst::Vector{Any}=[false,0,0,Vector{Vector{Symbol}}()])   
+function ProgressNS(e::IPM_Ensemble, wm::Worker_Monitor, tuner::Permute_Tuner, interval::Real, log_frac::AbstractFloat; dt::Real=0.1, desc::AbstractString="Nested Sampling::", color::Symbol=:green, output::IO=stderr, offset::Integer=0, start_it::Integer=1, wk_disp::Bool=false, tuning_disp::Bool=false, conv_plot::Bool=false, lh_disp::Bool=false, liwi_disp::Bool=false, ens_disp::Bool=false, src_disp::Bool=false, nsrcs=0, disp_rotate_inst::Vector{Any}=[false,0,0,Vector{Vector{Symbol}}()])
     top_m = deserialize(e.models[findmax([model.log_Li for model in e.models])[2]].path)
+    if disp_rotate_inst[1]
+        symvec=disp_rotate_inst[4][disp_rotate_inst[3]]
+        for symbol in symvec
+            :($symbol)=true
+        end
+    else
+        conv_plot=true; src_disp=true #default displays
+    end
     
     return ProgressNS{typeof(interval)}(e, top_m, wm, tuner, log_frac, interval, dt=dt, desc=desc, color=color, output=output, offset=offset, start_it=start_it, wk_disp=wk_disp, tuning_disp=tuning_disp, conv_plot=conv_plot, lh_disp=lh_disp, liwi_disp=liwi_disp, ens_disp=ens_disp, src_disp=src_disp, nsrcs=nsrcs, disp_rotate_inst=disp_rotate_inst)
 end
@@ -147,7 +155,9 @@ function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offs
     end
 
     if t > p.tlast+p.dt && !p.triggered
-        msg = @sprintf "%s Iterate: %s Recent step time μ: %s Convergence Interval: %g\n" p.desc p.counter hmss(mean(p.time_history)) p.interval
+        p.counter < CONVERGENCE_MEMORY ? mean_step_time=mean(p.time_history[end-(p.counter-1):end]) :
+                                            mean_step_time=mean(p.time_history)
+        msg = @sprintf "%s Iterate: %s Recent step time μ: %s Convergence Interval: %g\n" p.desc p.counter hmss(mean_step_time) p.interval
 
         print(p.output, "\n" ^ (p.offset + p.numprintedvalues))
         move_cursor_up_while_clearing_lines(p.output, p.numprintedvalues)

@@ -38,10 +38,8 @@ function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
 		m_record = rand(e.models)
         m = deserialize(m_record.path)
 
-        filteridxs=findall(p->!in(p,m.permute_blacklist),instruction.funcs)
-        filtered_funcs=instruction.funcs[filteridxs]
-        filtered_weights=filter_weights(instruction.weights, filteridxs)
-        filtered_args=instruction.args[filteridxs]
+        model_blacklist=copy(m.permute_blacklist)
+        filteridxs, filtered_funcs, filtered_weights, filtered_args = filter_permutes(instruction, model_blacklist)
 
         for call in 1:instruction.func_limit
             start=time()
@@ -50,6 +48,12 @@ function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
             pos_args,kw_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
             new_m=permute_func(pos_args...;kw_args...)
             push!(call_report,(filteridxs[funcidx],time()-start,new_m.log_Li - e.contour))
+
+            if length(new_m.permute_blacklist) > 0 && new_m.log_Li == -Inf #in this case the blacklisted function will not work on this model at all; it should be removed from the functions to use
+                vcat(model_blacklist,new_m.permute_blacklist)
+                filteridxs, filtered_funcs, filtered_weights, filtered_args = filter_permutes(instruction, model_blacklist)
+            end
+
 			dupecheck(new_m,m) && new_m.log_Li > e.contour && return new_m, call_report
 		end
 	end
@@ -74,10 +78,8 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
             
             remotecall_fetch(isfile,1,m_record.path) ? m = (remotecall_fetch(deserialize,1,m_record.path)) : (break)
 
-            filteridxs=findall(p->!in(p,m.permute_blacklist),instruction.funcs)
-            filtered_funcs=instruction.funcs[filteridxs]
-            filtered_weights=filter_weights(instruction.weights, filteridxs)
-            filtered_args=instruction.args[filteridxs]
+            model_blacklist=copy(m.permute_blacklist)
+            filteridxs, filtered_funcs, filtered_weights, filtered_args = filter_permutes(instruction, model_blacklist)
 
             for call in 1:instruction.func_limit
                 start=time()
@@ -86,7 +88,14 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
                 pos_args,kw_args=get_permfunc_args(permute_func,e,m,filtered_args[funcidx])
                 new_m=permute_func(pos_args...;kw_args...)
                 push!(call_report,(filteridxs[funcidx],time()-start,new_m.log_Li - e.contour))
-				dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; model_ctr=1; break)
+
+                if length(new_m.permute_blacklist) > 0 && new_m.log_Li == -Inf #in this case the blacklisted function will not work on this model at all; it should be removed from the functions to use
+                    vcat(model_blacklist,new_m.permute_blacklist)
+                    filteridxs, filtered_funcs, filtered_weights, filtered_args = filter_permutes(instruction, model_blacklist)
+                end
+
+                dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; model_ctr=1; break)
+                
 			end
             found==true && break;
             model_ctr+=1
@@ -96,6 +105,14 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
 		end
 	end
 end
+                function filter_permutes(instruction, model_blacklist)
+                    filteridxs=findall(p->!in(p,model_blacklist),instruction.funcs)
+                    filtered_funcs=instruction.funcs[filteridxs]
+                    filtered_weights=filter_weights(instruction.weights, filteridxs)
+                    filtered_args=instruction.args[filteridxs]
+                    return filteridxs, filtered_funcs, filtered_weights, filtered_args
+                end
+
                 function filter_weights(weights, idxs)
                     deplete=0.
                     for (i, weight) in enumerate(weights)
