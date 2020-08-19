@@ -3,13 +3,6 @@ function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct)
     serialize(string(e.path,'/',"inst"), instruction)
 end
 
-function clean_ensemble_dir(e::IPM_Ensemble)
-    e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
-    for file in readdir(e.path)
-        !(file in vcat([basename(model.path) for model in e.models],"ens")) && rm(e.path*'/'*file)
-    end
-end
-
 function reset_ensemble(e::IPM_Ensemble)
     new_e=deepcopy(e)
     for i in 1:length(e.models)
@@ -20,7 +13,8 @@ function reset_ensemble(e::IPM_Ensemble)
         end
     end
 
-    new_e.contour=new_e.log_Li[1]
+    new_e.contour=minimum([record.log_Li for record in new_e.models])
+
     new_e.log_Li=[new_e.log_Li[1]]
     new_e.log_Xi=[new_e.log_Xi[1]]
     new_e.log_wi=[new_e.log_wi[1]]
@@ -32,8 +26,16 @@ function reset_ensemble(e::IPM_Ensemble)
 
     new_e.model_counter=length(new_e.models)+1
 
+    clean_ensemble_dir(new_e; ignore_warn=true)
     isfile(e.path*"/inst") && rm(e.path*"/inst")
     serialize(e.path*"/ens", new_e)
 
     return new_e
+end
+
+function clean_ensemble_dir(e::IPM_Ensemble; ignore_warn=false)
+    !ignore_warn && e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
+    for file in readdir(e.path)
+        !(file in vcat([basename(model.path) for model in e.models],"ens")) && rm(e.path*'/'*file)
+    end
 end

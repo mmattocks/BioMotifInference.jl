@@ -57,8 +57,8 @@ function update_weights!(t::Permute_Tuner)
     pvec./=sum(pvec)
     any(i->i<t.minimum_clamp,pvec) && clamp_pvec!(pvec,t.minimum_clamp)
 
-    isprobvec(pvec) && (t.weights=pvec)
-    t.tabular_display[!,"Weights"]=pvec
+    @assert isprobvec(pvec)
+    t.weights=pvec; t.tabular_display[!,"Weights"]=pvec
 end
             function clamp_pvec!(pvec, clamp)
                 clamped=false
