@@ -1,4 +1,3 @@
-
 #LIKELIHOOD SCORING FUNCS
 function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}, observations::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractArray{<:AbstractFloat}, mix::BitMatrix, revcomp::Bool=true, returncache::Bool=false, cache::AbstractVector{<:AbstractFloat}=zeros(0), clean::AbstractVector{<:Bool}=Vector(falses(size(observations)[2])))
     source_wmls=[size(source[1])[1] for source in sources]
@@ -56,8 +55,6 @@ end
 
                 function score_source(observation::AbstractVector{<:Integer}, source::AbstractMatrix{<:AbstractFloat}, source_stop::Integer, revcomp::Bool=true)
                     revcomp ? (revsource = revcomp_pwm(source); score_matrix = zeros(source_stop,2)) : score_matrix = zeros(source_stop)
-                    forward_score = 0.0
-                    revcomp && (reverse_score = 0.0)
 
                     for t in 1:source_stop
                         forward_score = 0.0 #initialise scores as log(p=1)
@@ -78,7 +75,6 @@ end
                                 function revcomp_pwm(pwm::AbstractMatrix{<:AbstractFloat}) #in order to find a motif on the reverse strand, we scan the forward strand with the reverse complement of the pwm, reordered 3' to 5', so that eg. an PWM for an ATG motif would become one for a CAT motif
                                     return pwm[end:-1:1,end:-1:1]
                                 end
-
 
                 function weave_scores(obsl::Integer, bg_scores::SubArray, score_mat::AbstractVector{<:AbstractMatrix{<:AbstractFloat}}, obs_source_indices::AbstractVector{<:Integer}, source_wmls::AbstractVector{<:Integer}, log_motif_expectation::AbstractFloat, cardinality_penalty::AbstractFloat,  revcomp::Bool=true)
                     L=obsl+1

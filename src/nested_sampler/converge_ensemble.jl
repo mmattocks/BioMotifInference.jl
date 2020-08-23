@@ -1,4 +1,4 @@
-function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), backup::Tuple{Bool,Integer}=(false,0), verbose::Bool=false, progargs...)
+function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), backup::Tuple{Bool,Integer}=(false,0), clean::Tuple{Bool,Integer,Integer}=(false,0,0), verbose::Bool=false, progargs...)
     N = length(e.models)
     log_frac=log(evidence_fraction)
     
@@ -17,7 +17,8 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         tune_weights!(tuner, step_report)
         instruction = tune_instruction(tuner, instruction)
 
-        backup[1] && curr_it%backup[2] == 0 && serialize(string(e.path,'/',"ens"), e) #every backup interval, serialise the ensemble
+        backup[1] && curr_it%backup[2] == 0 && e_backup(e,instruction) #every backup interval, serialise the ensemble and instruction
+        clean[2] &&  !e.sample_posterior && curr_it%clean[2] == 0 && clean_ensemble_dir(e,clean[3]) #every clean interval, remove old discarded models
 
         update!(meter,lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]),lps(log_frac,e.log_Zi[end]))        
     end
@@ -26,18 +27,20 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
-        serialize(string(e.path,'/',"ens"), e)
+        e_backup(e,instruction)
+        clean[2] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return final_logZ
     elseif curr_it==max_iterates
         @info "Job done, sampled to maximum iterate $max_iterates. Convergence criterion not obtained."
 
-        serialize(string(e.path,'/',"ens"), e)
+        e_backup(e,instruction)
+        clean[2] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return e.log_Zi[end]
     end
 end
 
     
-function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_pool::Vector{Int64}, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), backup::Tuple{Bool,<:Integer}=(false,0), verbose::Bool=false, progargs...)
+function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_pool::Vector{Int64}, evidence_fraction::AbstractFloat=.001; max_iterates=typemax(Int64), backup::Tuple{Bool,<:Integer}=(false,0), clean::Tuple{Bool,Integer,Integer}=(false,0,0), verbose::Bool=false, progargs...)
     N = length(e.models)
     log_frac=log(evidence_fraction)
     
@@ -69,8 +72,9 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         tune_weights!(tuner, step_report)
         instruction = tune_instruction(tuner, instruction) 
         take!(job_chan); put!(job_chan,(e.models,e.contour,instruction))
-        backup[1] && curr_it%backup[2] == 0 && serialize(string(e.path,'/',"ens"), e) #every backup interval, serialise the ensemble
-    
+        backup[1] && curr_it%backup[2] == 0 && e_backup(e,instruction) #every backup interval, serialise the ensemble and instruction
+        clean[2] && !e.sample_posterior && curr_it%clean[2] == 0 && clean_ensemble_dir(e,clean[3]) #every clean interval, remove old discarded models
+
         update!(meter, lps(findmax([model.log_Li for model in e.models])[1], e.log_Xi[end]), lps(log_frac,e.log_Zi[end]))
     end
 
@@ -80,12 +84,14 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
-        serialize(string(e.path,'/',"ens"), e)
+        e_backup(e,instruction)
+        clean[2] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return final_logZ
     elseif curr_it==max_iterates
         @info "Job done, sampled to maximum iterate $max_iterates. Convergence criterion not obtained."
 
-        serialize(string(e.path,'/',"ens"), e)
+        e_backup(e,instruction)
+        clean[2] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return e.log_Zi[end]
     end
 end

@@ -23,6 +23,7 @@ module BioMotifInference
     export Model_Record
     export ICA_PWM_Model
     include("IPM/IPM_likelihood.jl")
+    include("IPM/dev_lh.jl")
     include("IPM/IPM_prior_utilities.jl")
     assemble_source_priors
     include("ensemble/IPM_Ensemble.jl")
