@@ -4,19 +4,20 @@ function ensemble_history(e::IPM_Ensemble, bins=25)
     show(histogram(livec, nbins=bins))
 end
 
-function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct)
+function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct, tuner::Permute_Tuner)
     serialize(string(e.path,'/',"ens"), e)
     serialize(string(e.path,'/',"inst"), instruction)
+    serialize(string(e.path,'/',"tuner"), tuner)
 end
 
-function clean_ensemble_dir(e::IPM_Ensemble, model_pad::Integer)
-    e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
+function clean_ensemble_dir(e::IPM_Ensemble, model_pad::Integer; ignore_warn=false)
+    !ignore_warn && e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
     for file in readdir(e.path)
         !(file in vcat([basename(model.path) for model in e.models],"ens","inst",[string(number) for number in e.model_counter-length(e.models)-model_pad:e.model_counter])) && rm(e.path*'/'*file)
     end
 end
 
-function reset_ensemble(e::IPM_Ensemble)
+function reset_ensemble!(e::IPM_Ensemble)
     new_e=deepcopy(e)
     for i in 1:length(e.models)
         if string(i) in [basename(record.path) for record in e.models]
@@ -39,16 +40,9 @@ function reset_ensemble(e::IPM_Ensemble)
 
     new_e.model_counter=length(new_e.models)+1
 
-    clean_ensemble_dir(new_e; ignore_warn=true)
+    clean_ensemble_dir(new_e, 0; ignore_warn=true)
     isfile(e.path*"/inst") && rm(e.path*"/inst")
     serialize(e.path*"/ens", new_e)
 
     return new_e
-end
-
-function clean_ensemble_dir(e::IPM_Ensemble; ignore_warn=false)
-    !ignore_warn && e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
-    for file in readdir(e.path)
-        !(file in vcat([basename(model.path) for model in e.models],"ens")) && rm(e.path*'/'*file)
-    end
 end

@@ -2,7 +2,7 @@
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp, logaddexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_sources_ds!, score_sources_ss!, weave_scores_ss!, weave_scores_ds!, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!, clamp_pvec!
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_sources_ds!, score_sources_ss!, weave_scores_ss!, weave_scores_ds!, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble!, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!, clamp_pvec!
 import Distances: euclidean
 
 @info "Beginning tests..."
@@ -352,9 +352,12 @@ end
     @info "Testing convergence displays..."
     sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000.,  wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=50)
 
-    sp_ensemble=reset_ensemble(sp_ensemble)
+    sp_ensemble=reset_ensemble!(sp_ensemble)
 
     @info "Testing threaded convergence..."
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 500000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150), max_iterates=300)
+
+    @info "Testing resumption..."
     sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150))
     @test length(sp_ensemble.models) == 200
     @test length(sp_ensemble.log_Li) == length(sp_ensemble.log_Xi) == length(sp_ensemble.log_wi) == length(sp_ensemble.log_Liwi) == length(sp_ensemble.log_Zi) == length(sp_ensemble.Hi) == sp_ensemble.model_counter-200
@@ -372,7 +375,7 @@ end
     @everywhere using BioMotifInference
 
     ####CONVERGE############
-    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 50000000000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false)
+    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 40000000000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true,500), clean=(true, 500, 1000))
 
     rmprocs(worker_pool)
 
