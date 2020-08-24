@@ -184,4 +184,7 @@
 
     @test baselh==unchangedlh!=changed_lh==indep_lh
     @test basecache==unchangedcache!=changedcache==indepcache
+
+    #check that IPM_likelihood works in single stranded operation
+    IPM_likelihood(sources, obs,[12,12], bg_scores, BitMatrix([true true; false false]), false)
 end

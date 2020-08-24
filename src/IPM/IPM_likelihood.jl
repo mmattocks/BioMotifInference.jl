@@ -7,7 +7,7 @@ function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:Abstr
 
     obs_src_idxs=mix_pull_idxs(mix) #get vectors of sources emitting in each obs
 
-    revcomp ? (srcs=[cat(source[1],revcomp_pwm(source[1]),dims=3) for source in sources]; motif_expectations = [(0.5/obsl) for obsl in obs_lengths]; mat_dim=2) : (src=[source[1] for source in sources]; ; motif_expectations = [(1/obsl) for obsl in obs_lengths]; mat_dim=1) #setup appropriate reverse complemented sources if necessary and set log_motif_expectation-nMica has 0.5 per base for including the reverse complement, 1 otherwise
+    revcomp ? (srcs=[cat(source[1],revcomp_pwm(source[1]),dims=3) for source in sources]; motif_expectations = [(0.5/obsl) for obsl in obs_lengths]; mat_dim=2) : (srcs=[source[1] for source in sources]; ; motif_expectations = [(1/obsl) for obsl in obs_lengths]; mat_dim=1) #setup appropriate reverse complemented sources if necessary and set log_motif_expectation-nMica has 0.5 per base for including the reverse complement, 1 otherwise
 
     lme_vec=zeros(length(sources))
 
@@ -20,8 +20,8 @@ function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:Abstr
     
     Threads.@threads for t in 1:nt
         revcomp && (weavevec=zeros(3))
+        revcomp ? (score_mat=zeros(maximum(source_stops),2)) : (score_mat=zeros(maximum(source_stops)))
         opt = floor(O/nt) #obs per thread
-        score_mat=zeros(maximum(source_stops),mat_dim)
         score_matrices=Vector{typeof(score_mat)}(undef, length(sources)) #preallocate
         osi_emitting=Vector{Int64}() #preallocate
         lh_vec = zeros(L) #preallocated likelihood vector is one position (0 initialiser) longer than the longest obs
