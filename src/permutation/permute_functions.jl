@@ -52,7 +52,7 @@ function permute_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs
     return ICA_PWM_Model("candidate","PM from $(m.name)", m.sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check is necessary as sources havent changed
 end
 
-function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat},contour::AbstractFloat,  source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, remote=false)
+function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat},contour::AbstractFloat,  source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, length_perm_range::UnitRange{<:Integer}=LENGTHPERM_RANGE,weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, remote=false)
     new_log_Li=-Inf;  iterate = 1
     T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
@@ -67,7 +67,7 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
         new_mix[:,s].=false;tm_one[:,s].=true
 
         weight_shift_freq > 0 && (new_sources[s]=permute_source_weights(new_sources[s], weight_shift_freq, weight_shift_dist))
-        rand() < length_change_freq && (new_sources[s]=permute_source_length(new_sources[s], source_priors[s], m.source_length_limits))
+        rand() < length_change_freq && (new_sources[s]=permute_source_length(new_sources[s], source_priors[s], m.source_length_limits, length_perm_range))
 
         l,zero_cache=IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
         l,one_cache=IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, tm_one, true, true)
