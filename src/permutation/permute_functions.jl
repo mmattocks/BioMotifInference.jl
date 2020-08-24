@@ -229,7 +229,7 @@ function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, o
         end
     end
 
-    length(erosion_sources)==0 && return ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li,Vector{Function}())#if we got a model we cant erode bail out with a model marked -Inf lh
+    length(erosion_sources)==0 && return ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li,[erode_model])#if we got a model we cant erode bail out with a model marked -Inf lh and with EM blacklisted
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
 
@@ -244,8 +244,10 @@ function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, o
         iterate += 1
     end
 
+    new_log_Li <= contour ? (blacklist=[erode_model]) : (blacklist=Vector{Function}())
+
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 full_perm_funcvec=[permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, distance_merge, similarity_merge, reinit_src, erode_model]
