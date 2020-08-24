@@ -1,6 +1,19 @@
+function ensemble_history(e::IPM_Ensemble, bins=25)
+    !e.sample_posterior && throw(ArgumentError("This ensemble has no posterior samples to show a history for!"))
+    livec=vcat([model.log_Li for model in e.models],[model.log_Li for model in e.retained_posterior_samples])
+    show(histogram(livec, nbins=bins))
+end
+
 function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct)
     serialize(string(e.path,'/',"ens"), e)
     serialize(string(e.path,'/',"inst"), instruction)
+end
+
+function clean_ensemble_dir(e::IPM_Ensemble, model_pad::Integer)
+    e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
+    for file in readdir(e.path)
+        !(file in vcat([basename(model.path) for model in e.models],"ens","inst",[string(number) for number in e.model_counter-length(e.models)-model_pad:e.model_counter])) && rm(e.path*'/'*file)
+    end
 end
 
 function reset_ensemble(e::IPM_Ensemble)

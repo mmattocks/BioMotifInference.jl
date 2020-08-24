@@ -15,4 +15,6 @@ obs[1:150,1:end].=1
 obsl=[findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]]
 mix=trues(10000,2)
 
-println(median(@benchmark (BioMotifInference.IPM_likelihood($sources, $obs, $obsl, $bg_scores, $mix))))
+println(median(@benchmark (BioMotifInference.IPM_likelihood($sources, $obs, $obsl, $bg_scores, $mix)) samples=5 evals=20))
+
+println(median(@benchmark (BioMotifInference.dev_likelihood($sources, $obs, $obsl, $bg_scores, $BitMatrix(transpose(mix)))) samples=5 evals=20))

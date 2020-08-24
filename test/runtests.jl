@@ -1,8 +1,8 @@
 @info "Loading test packages..."
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
-import StatsFuns: logsumexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_source, score_obs_sources, weave_scores, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!, clamp_pvec!
+import StatsFuns: logsumexp, logaddexp
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_sources_ds!, score_sources_ss!, weave_scores_ss!, weave_scores_ds!, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!, clamp_pvec!
 import Distances: euclidean
 
 @info "Beginning tests..."
@@ -120,6 +120,15 @@ O=1000;S=50
     @test isapprox(exp.(eroded_pwm),[.7 .1 .1 .1
     .06 .06 .06 .82
     .7 .1 .1 .1])
+
+
+    #make sure revcomp_pwm is reversing pwms across both dimensions
+    revcomp_test_pwm = zeros(2,4)
+    revcomp_test_pwm[1,1] = 1
+    revcomp_test_pwm[2,3] = 1
+    log_revcomp_test_pwm = log.(revcomp_test_pwm)
+    @test revcomp_pwm(log_revcomp_test_pwm) == [-Inf 0. -Inf -Inf
+                                                        -Inf -Inf -Inf 0.]
 end
 
 @testset "Mix matrix initialisation and manipulation functions" begin
@@ -161,131 +170,7 @@ end
     @test most_similar(src_mixvec,compare_mix)==test_idx
 end
 
-@testset "Observation setup and model scoring functions" begin
-    #test a trivial scoring example
-    obs=[BioSequences.LongSequence{DNAAlphabet{2}}("AAAAA")]
-    order_seqs = BioBackgroundModels.get_order_n_seqs(obs, 0)
-    coded_seqs = BioBackgroundModels.code_seqs(order_seqs)
-    obs=Array(transpose(coded_seqs))
-
-    source_pwm = zeros(1,4)
-    source_pwm[1,1] = 1
-    log_pwm = log.(source_pwm)
-
-    source_stop=5
-
-    @test score_source(obs[1:5,1], log_pwm, source_stop) == [0.0 -Inf; 0.0 -Inf; 0.0 -Inf; 0.0 -Inf; 0.0 -Inf]
-
-    #make sure revcomp_pwm is reversing pwms across both dimensions
-    revcomp_test_pwm = zeros(2,4)
-    revcomp_test_pwm[1,1] = 1
-    revcomp_test_pwm[2,3] = 1
-    log_revcomp_test_pwm = log.(revcomp_test_pwm)
-    @test revcomp_pwm(log_revcomp_test_pwm) == [-Inf 0 -Inf -Inf
-                                                        -Inf -Inf -Inf 0]
-
-    #test a more complicated scoring example
-    obs=[BioSequences.LongSequence{DNAAlphabet{2}}("ATGATGATGATG")]
-    order_seqs = BioBackgroundModels.get_order_n_seqs(obs, 0)
-    coded_seqs = BioBackgroundModels.code_seqs(order_seqs)
-    obs=Array(transpose(coded_seqs))
-
-    source_pwm = [.7 .1 .1 .1
-                  .1 .1 .1 .7
-                  .1 .1 .7 .1]
-    log_pwm = log.(source_pwm)
-
-    source_start = 1
-    source_stop = 10
-    
-    @test isapprox(exp.(score_source(obs[1:12,1], log_pwm, source_stop)),
-        [.7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3])
-
-    #test scoring of multiple obs and sources
-    obs=[BioSequences.LongSequence{DNAAlphabet{2}}("ATGATGATGATG")
-         BioSequences.LongSequence{DNAAlphabet{2}}("TGATGATGATGA")]
-    order_seqs = BioBackgroundModels.get_order_n_seqs(obs, 0)
-    coded_seqs = BioBackgroundModels.code_seqs(order_seqs)
-    obs=Array(transpose(coded_seqs))
-    
-    source_pwm_2 = [.6 .1 .1 .2
-                    .2 .1 .1 .6
-                    .1 .2 .6 .1]
-
-    target_o1_s1 = [.7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3]
-    target_o1_s2 = [.6^3 (.2*.1^2); (.2*.1^2) (.2*.1^2); (.2*.1^2) (.2*.6^2); .6^3 (.2*.1^2); (.2*.1^2) (.2*.1^2); (.2*.1^2) (.2*.6^2); .6^3 (.2*.1^2); (.2*.1^2) (.2*.1^2); (.2*.1^2) (.2*.6^2); .6^3 (.2*.1^2)]
-    target_o2_s1 = [.1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3; .1^3 (.1*.7^2); .7^3 .1^3; .1^3 .1^3]
-    target_o2_s2 = [(.2*.1^2) (.2*.1^2); (.2*.1^2) (.2*.6^2); .6^3 (.2*.1^2); (.2*.1^2) (.2*.1^2); (.2*.1^2) (.2*.6^2); .6^3 (.2*.1^2); (.2*.1^2) (.2*.1^2); (.2*.1^2) (.2*.6^2); .6^3 (.2*.1^2); (.2*.1^2) (.2*.1^2)]
-
-    sources = [(log.(source_pwm), 1),(log.(source_pwm_2), 1)]
-    dbl1_srcs=[(log.(source_pwm), 1),(log.(source_pwm), 1)]
-    source_wmls = [size(source[1])[1] for source in sources]
-
-    position_start = 1
-    offsets=[0,0]
-    mix_matrix = trues(2,2)
-
-    score_mat1 = score_obs_sources(sources, Vector(obs[:,1]), 12, source_wmls)
-
-    @test isapprox(exp.(score_mat1[1]),target_o1_s1)
-    @test isapprox(exp.(score_mat1[2]),target_o1_s2)
-
-    score_mat2 = score_obs_sources(sources, Vector(obs[:,2]), 12, source_wmls)
-
-    @test isapprox(exp.(score_mat2[1]),target_o2_s1)
-    @test isapprox(exp.(score_mat2[2]),target_o2_s2)
-
-    #test score weaving and IPM likelihood calculations
-    o=1
-    bg_scores = log.(fill(.5, (12,2)))
-    log_motif_expectation = log(0.5 / size(bg_scores)[1])
-    obs_source_indices = findall(mix_matrix[o,:])
-    obs_cardinality = length(obs_source_indices)
-    penalty_sum = sum(exp.(fill(log_motif_expectation,obs_cardinality)))
-    cardinality_penalty=log(1.0-penalty_sum) 
-
-    lh_target = -8.87035766177774
-
-    o1_lh = weave_scores(12, view(bg_scores,:,1), score_mat1, findall(mix_matrix[1,:]), source_wmls, log_motif_expectation, cardinality_penalty)
-    @test isapprox(lh_target,o1_lh)
-    o2_lh = weave_scores(12, view(bg_scores,:,2), score_mat2, findall(mix_matrix[2,:]), source_wmls, log_motif_expectation, cardinality_penalty)
-
-    lh,cache = IPM_likelihood(sources, obs, [12,12], bg_scores, mix_matrix, true,true)
-    @test o1_lh==cache[1]
-    @test o2_lh==cache[2]
-    @test isapprox(lps(o1_lh,o2_lh),lh)
-    
-    #test source penalization
-    dbl_score_mat= score_obs_sources(dbl1_srcs, Vector(obs[:,1]),12,source_wmls)
-
-    naive=weave_scores(12, view(bg_scores,:,1), Vector{Matrix{Float64}}(), Vector{Int64}(), Vector{Int64}(), log_motif_expectation,cardinality_penalty)
-
-    single=weave_scores(12, view(bg_scores,:,1), [dbl_score_mat[1]], [1], [source_wmls[1]], log_motif_expectation, cardinality_penalty)
-
-    double=weave_scores(12, view(bg_scores,:,1), dbl_score_mat, [1,2], source_wmls, log_motif_expectation, cardinality_penalty)
-
-    triple=weave_scores(12, view(bg_scores,:,1), [dbl_score_mat[1] for i in 1:3], [1,2,3], [3 for i in 1:3], log_motif_expectation, cardinality_penalty)
-
-    @test (single-naive) > (double-single) > (triple-double)
-
-    naive_target=-16.635532333438686
-    naive = IPM_likelihood(sources, obs, [findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]], bg_scores,falses(size(obs)[2],length(sources)))
-    @test naive==naive_target
-
-    #test IPM_likelihood clean vector and cache calculations
-    baselh,basecache = IPM_likelihood(sources, obs, [12,12], bg_scores, mix_matrix, true,true)
-
-    clean=[true,false]
-
-    unchangedlh,unchangedcache=IPM_likelihood(sources, obs, [12,12], bg_scores, mix_matrix, true, true, basecache, clean)
-
-    changed_lh,changedcache=IPM_likelihood(sources, obs, [12,12], bg_scores, BitMatrix([true true; false false]), true, true, basecache, clean)
-
-    indep_lh, indepcache=IPM_likelihood(sources,obs,[12,12], bg_scores, BitMatrix([true true; false false]), true, true)
-
-    @test baselh==unchangedlh!=changed_lh==indep_lh
-    @test basecache==unchangedcache!=changedcache==indepcache
-end
+include("likelihood_unit_tests.jl")
 
 @testset "Orthogonality helper" begin
     bg_scores = log.(fill(.25, (17,3)))
