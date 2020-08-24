@@ -1,7 +1,7 @@
 name = "BioMotifInference"
 uuid = "23206ec3-a6aa-4a79-a7c0-9e85de80e56b"
 authors = ["Michael Mattocks <mike.mattocks@utoronto.ca>"]
-version = "0.3.1"
+version = "0.3.2"
 
 [deps]
 BioBackgroundModels = "71d2fffc-6959-458e-9716-bd512c1bc899"
