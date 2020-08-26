@@ -32,7 +32,7 @@ function nested_step!(e::IPM_Ensemble, permute_instruction::Permute_Instruct)
     #UPDATE ENSEMBLE QUANTITIES   
     push!(e.log_Li, minimum([model.log_Li for model in e.models])) #log likelihood of the least likely model - the current ensemble ll contour at Xi
     push!(e.log_Xi, -i/N) #log Xi - crude estimate of the iterate's enclosed prior mass
-    push!(e.log_wi, lps(e.log_Xi[i], -(j+1)-log(2))) #log width of prior mass spanned by the last step-trapezoidal approx
+    push!(e.log_wi, lps(e.log_Xi[i], -((j+1)/N)-log(2))) #log width of prior mass spanned by the last step-trapezoidal approx
     push!(e.log_Liwi, lps(e.log_Li[j],e.log_wi[j])) #log likelihood + log width = increment of evidence spanned by iterate
     push!(e.log_Zi, logaddexp(e.log_Zi[i],e.log_Liwi[j]))    #log evidence
     #information- dimensionless quantity
@@ -73,7 +73,7 @@ function nested_step!(e::IPM_Ensemble, model_chan::RemoteChannel, wk_mon::Worker
     #UPDATE ENSEMBLE QUANTITIES   
     push!(e.log_Li, minimum([model.log_Li for model in e.models])) #log likelihood of the least likely model - the current ensemble ll contour at Xi
     push!(e.log_Xi, -i/N) #log Xi - crude estimate of the iterate's enclosed prior mass
-    push!(e.log_wi, lps(e.log_Xi[i], -(j+1)-log(2))) #log width of prior mass spanned by the last step-trapezoidal approx
+    push!(e.log_wi, lps(e.log_Xi[i], -((j+1)/N)-log(2))) #log width of prior mass spanned by the last step-trapezoidal approx
     push!(e.log_Liwi, lps(e.log_Li[j],e.log_wi[j])) #log likelihood + log width = increment of evidence spanned by iterate
     push!(e.log_Zi, logaddexp(e.log_Zi[i],e.log_Liwi[j]))    #log evidence
 

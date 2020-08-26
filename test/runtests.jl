@@ -350,15 +350,15 @@ end
     instruct = Permute_Instruct(funcvec, ones(length(funcvec))./length(funcvec),models_to_permute,200, .02)
     
     @info "Testing convergence displays..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000.,  wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=50)
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 500.,  wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=50)
 
     sp_ensemble=reset_ensemble!(sp_ensemble)
 
     @info "Testing threaded convergence..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 500000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150), max_iterates=300)
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 500.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150), max_iterates=300)
 
     @info "Testing resumption..."
-    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 50000000000000000.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150))
+    sp_logZ = converge_ensemble!(sp_ensemble, instruct, 500.,wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true, 150))
     @test length(sp_ensemble.models) == 200
     @test length(sp_ensemble.log_Li) == length(sp_ensemble.log_Xi) == length(sp_ensemble.log_wi) == length(sp_ensemble.log_Liwi) == length(sp_ensemble.log_Zi) == length(sp_ensemble.Hi) == sp_ensemble.model_counter-200
     for i in 1:length(sp_ensemble.log_Li)-1
@@ -375,7 +375,7 @@ end
     @everywhere using BioMotifInference
 
     ####CONVERGE############
-    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 40000000000000000., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true,500), clean=(true, 500, 1000))
+    final_logZ = converge_ensemble!(ensemble, instruct, worker_pool, 500., wk_disp=false, tuning_disp=false, ens_disp=false, conv_plot=false, src_disp=false, lh_disp=false, liwi_disp=false, backup=(true,500), clean=(true, 500, 1000))
 
     rmprocs(worker_pool)
 
