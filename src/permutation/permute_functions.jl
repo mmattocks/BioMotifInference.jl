@@ -137,12 +137,15 @@ function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
 
     a, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
 
-    while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
+    remote ? (merger_m = deserialize(rand(models).path)) : (merger_m = remotecall_fetch(deserialize, 1, rand(models).path)) #randomly select a model to merge
+
+    svec=[1:S...]
+
+    while new_log_Li <= contour && length(svec)>0 #until we produce a model more likely than the lh contour or no more sources to attempt merger
         new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
         clean=Vector{Bool}(trues(O))
 
-        remote ? (merger_m = deserialize(rand(models).path)) : (merger_m = remotecall_fetch(deserialize, 1, rand(models).path)) #randomly select a model to merge
-        s = rand(1:S) #randomly select a source to merge
+        s = popat!(svec,rand(1:S)) #randomly select a source to merge
         merge_s=most_dissimilar(new_mix[:,s],merger_m.mix_matrix)
         
         clean[new_mix[:,s]].=false #mark dirty any obs that start with the source
@@ -165,12 +168,15 @@ function similarity_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Recor
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
 
-    while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
+    remote ? (merger_m = deserialize(rand(models).path)) : (merger_m = remotecall_fetch(deserialize, 1, rand(models).path))#randomly select a model to merge
+
+    svec=[1:S...]
+
+    while new_log_Li <= contour && length(svec)>0 #until we produce a model more likely than the lh contour or no more sources to attempt merger
         new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
         clean=Vector{Bool}(trues(O))
 
-        remote ? (merger_m = deserialize(rand(models).path)) : (merger_m = remotecall_fetch(deserialize, 1, rand(models).path))#randomly select a model to merge
-        s = rand(1:S) #randomly select a source in the model to merge
+        s = popat!(svec,rand(1:S)) #randomly select a source to merge
         merge_s=most_similar(m.mix_matrix[:,s],merger_m.mix_matrix)
 
         clean[m.mix_matrix[:,s]].=false #mark dirty any obs that have the source
