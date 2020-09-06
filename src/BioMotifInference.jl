@@ -8,7 +8,7 @@ module BioMotifInference
     import Distances: euclidean
 
     #CONSTANTS AND PERMUTE FUNCTION ARGUMENT DEFAULTS GIVING RISE TO IMPLEMENTATION-SPECIFIC SAMPLING EFFECTS
-    global TUNING_MEMORY=3 #coefficient multiplied by Permute_Instruct function call limit to give total number of calls remembered by tuner per function
+    global TUNING_MEMORY=20 #coefficient multiplied by Permute_Instruct function call limit to give total number of calls remembered by tuner per function
     global CONVERGENCE_MEMORY=500 #number of iterates to display for convergence interval history
     global PWM_SHIFT_DIST=Weibull(.5,.1) #distribution of weight matrix permutation magnitudes
     global PWM_SHIFT_FREQ=.2 #proportion of positions in source to permute weight matrix

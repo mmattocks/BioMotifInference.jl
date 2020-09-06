@@ -1,18 +1,33 @@
-struct Permute_Instruct
+mutable struct Permute_Instruct
     funcs::AbstractVector{<:Function}
     weights::AbstractVector{<:AbstractFloat}
     args::AbstractVector{<:AbstractVector{<:Tuple{<:Symbol,<:Any}}}
     model_limit::Integer
     func_limit::Integer
-    clamp::AbstractFloat
-    Permute_Instruct(funcs,weights,model_limit,func_limit,clamp=.01; args=[Vector{Tuple{Symbol,Any}}() for i in 1:length(funcs)])=assert_permute_instruct(funcs,weights,args,model_limit,func_limit,clamp) && new(funcs,weights,args,model_limit,func_limit,clamp)
+    min_clmps::AbstractVector{<:AbstractFloat}
+    max_clmps::AbstractVector{<:AbstractFloat}
+    override_time::AbstractFloat
+    override_weights::AbstractVector{<:AbstractFloat}
+    Permute_Instruct(funcs,
+                    weights,
+                    model_limit,
+                    func_limit;
+                    min_clmps=fill(.01,length(funcs)),
+                    max_clmps=fill(1.,length(funcs)),
+                    override_time=0., 
+                    override_weights=zeros(length(funcs)),
+                    args=[Vector{Tuple{Symbol,Any}}() for i in 1:length(funcs)])=assert_permute_instruct(funcs,weights,args,model_limit,func_limit,min_clmps,max_clmps,override_time,override_weights) && new(funcs,weights,args,model_limit,func_limit,min_clmps,max_clmps,override_time,override_weights)
 end
 
-function assert_permute_instruct(funcs,weights,args,model_limit,func_limit,clamp)
-    !(length(funcs)==length(args)==length(weights)) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights and argument vectors as functions!"))
+function assert_permute_instruct(funcs,weights,args,model_limit,func_limit,min_clmps, max_clmps, override_time, override_weights)
+    !(length(funcs)==length(args)==length(weights)==length(min_clmps)==length(max_clmps)) && throw(ArgumentError("A valid Permute_Instruct must have as many tuning weights and argument vectors as functions!"))
     model_limit<1 && throw(ArgumentError("Permute_Instruct limit on models to permute must be positive Integer!"))
     func_limit<1 && throw(ArgumentError("Permute_Instruct limit on fuction calls per model permtued must be positive Integer!"))
-    !(1/length(funcs)>=clamp>0) && throw(ArgumentError("Minimum function call probability for tuner (Permute_Instruct clamp) must be a positive float and cannot exceed 1/number of functions to tune."))
+    any(min_clmps.>=max_clmps) && throw(ArgumentError("Permute_Instruct max_clmps must all be greater than corresponding min_clmps!"))
+    sum(min_clmps)>1. && throw(ArgumentError("Sum of minimum clamps must be <1.0 to maintain a valid probability vector!"))
+    any(max_clmps.>1.) && throw(ArgumentError("Permute_Tuner maximum clamps cannot be >1.0!"))
+    override_time<0. && throw(ArgumentError("Permute_Instruct override_time must be 0 (disabled) or positive float!"))
+    override_time>0. && !isprobvec(override_weights) && throw(ArgumentError("Permute_Instruct override_weights must be valid probvec!"))
     return true
 end
 

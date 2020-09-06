@@ -2,7 +2,7 @@
 
 using BioMotifInference, BioBackgroundModels, BioSequences, Distributions, Distributed, Random, Serialization, Test
 import StatsFuns: logsumexp, logaddexp
-import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_sources_ds!, score_sources_ss!, weave_scores_ss!, weave_scores_ds!, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble!, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, update_weights!, clamp_pvec!
+import BioMotifInference:estimate_dirichlet_prior_on_wm, assemble_source_priors, init_logPWM_sources, wm_shift, permute_source_weights, get_length_params, permute_source_length, get_pwm_info, get_erosion_idxs, erode_source, init_mix_matrix, mixvec_decorrelate, mix_matrix_decorrelate, most_dissimilar, most_similar, revcomp_pwm, score_sources_ds!, score_sources_ss!, weave_scores_ss!, weave_scores_ds!, IPM_likelihood, consolidate_check, consolidate_srcs, pwm_distance, permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, reinit_src, erode_model, reinit_src, distance_merge, similarity_merge, converge_ensemble!, reset_ensemble!, Permute_Tuner, PRIOR_WT, TUNING_MEMORY, CONVERGENCE_MEMORY, tune_weights!, update_weights!, clamp_pvec!
 import Distances: euclidean
 
 @info "Beginning tests..."
@@ -255,33 +255,7 @@ include("likelihood_unit_tests.jl")
 end
 
 include("permute_func_tests.jl")
-
-@testset "Permute tuner" begin
-    clmp=.01
-    funcvec=[random_decorrelate,fit_mix]
-    instruct=Permute_Instruct(funcvec, [.5,.5],100,100,clmp)
-    tuner=Permute_Tuner(instruct)
-    @test tuner.weights==instruct.weights
-    #need to test update_weights functionality
-    #want to supply some fake data to induce a .8 .2 categorical
-    tuner.successes[:,1]=falses(TUNING_MEMORY*instruct.func_limit)
-    tuner.successes[:,2]=falses(TUNING_MEMORY*instruct.func_limit)
-    tuner.successes[1:Int(floor(TUNING_MEMORY*instruct.func_limit*.8)),1].=true
-    tuner.successes[1:Int(floor(TUNING_MEMORY*instruct.func_limit*.2)),2].=true
-    update_weights!(tuner)
-    @test tuner.weights==[.8,.2]    #check clamping
-    tuner.successes[:,1]=falses(TUNING_MEMORY*instruct.func_limit)
-    update_weights!(tuner)
-    @test tuner.weights==[clmp,1-clmp]
-
-    #more clamping tests
-    testvec=[0.02693244970132842, 0.031512823560878485, 0.050111382705776294, 0.6893314065796903, 0.04206537140157707, 0.02013161919125878, 0.026535815205008566, 0.051758654139053166, 0.03497967993105292, 0.013999262917669668, 0.01264153466670629]
-    target=[0.02527900179828276, 0.029859375657832827, 0.04845793480273063, 0.6876779586766446, 0.040411923498531406, 0.02, 0.02488236730196291, 0.050105206236007505, 0.03332623202800726, 0.02, 0.02]
-
-    clamp_pvec!(testvec,.02)
-    @test isprobvec(testvec)
-    @test testvec==target
-end
+include("permute_tuner_tests.jl")
 
 @testset "Ensemble assembly and nested sampling functions" begin
     ensembledir = randstring()
@@ -347,7 +321,7 @@ end
     funclimit=200
     funcvec=full_perm_funcvec
     
-    instruct = Permute_Instruct(funcvec, ones(length(funcvec))./length(funcvec),models_to_permute,200, .02)
+    instruct = Permute_Instruct(funcvec, ones(length(funcvec))./length(funcvec),models_to_permute,200, min_clmps=fill(.02,length(funcvec)))
     
     @info "Testing convergence displays..."
     sp_logZ = converge_ensemble!(sp_ensemble, instruct, 500.,  wk_disp=true, tuning_disp=true, ens_disp=true, conv_plot=true, src_disp=true, lh_disp=true, liwi_disp=true, max_iterates=50)

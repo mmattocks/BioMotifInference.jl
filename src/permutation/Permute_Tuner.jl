@@ -1,12 +1,17 @@
 mutable struct Permute_Tuner
-    functions::AbstractVector{<:Function}
+    inst::Permute_Instruct
     velocities::Matrix{Float64}
     successes::BitMatrix #(memoryxfunc)
-    minimum_clamp::AbstractFloat
-    weights::AbstractVector{<:AbstractFloat}
     tabular_display::DataFrame
+    time_history::Vector{Float64}
+    override::Bool
 end
 
+"""
+    Permute_Tuner(instruction)
+
+Generate a Permute_Tuner for the given instruction.
+"""
 function Permute_Tuner(instruction::Permute_Instruct)
     nfuncs=length(instruction.funcs)
     funcnames=Vector{String}()
@@ -19,9 +24,15 @@ function Permute_Tuner(instruction::Permute_Instruct)
 
     tabular_display=DataFrame("Function"=>funcnames, "Succeed"=>zeros(Int64,nfuncs), "Fail"=>zeros(Int64, nfuncs),"Velocity"=>ones(nfuncs), "Weights"=>instruction.weights)
 
-    return Permute_Tuner(instruction.funcs,vels,succs,instruction.clamp,instruction.weights,tabular_display)
+    instruction.override_time>0. ? (override=true) : (override=false)
+    return Permute_Tuner(instruction,vels,succs,tabular_display,zeros(CONVERGENCE_MEMORY),override)
 end
 
+"""
+    tune_weights!(tuner, call_report)
+
+Given a call_report from permute_IPM(), adjust tuner's Permute_Instruct weights on the basis of function success and likelihood surface velocity.
+"""
 function tune_weights!(tuner::Permute_Tuner, call_report::Vector{Tuple{Int64,Float64,Float64}})
     for call in call_report
         funcidx,time,distance=call
@@ -34,7 +45,8 @@ function tune_weights!(tuner::Permute_Tuner, call_report::Vector{Tuple{Int64,Flo
             tuner.tabular_display[funcidx,"Fail"]+=1 
         end
     end
-    update_weights!(tuner)
+    tuner.override && mean(tuner.time_history)>tuner.inst.override_time ? (tuner.inst.weights=tuner.inst.override_weights; tuner.tabular_display[!,"Weights"]=tuner.inst.override_weights) :
+        update_weights!(tuner)
 end
 
 function update_velocity!(velvec,time,distance)
@@ -49,34 +61,49 @@ function update_sucvec!(sucvec, bool)
 end
 
 function update_weights!(t::Permute_Tuner)
-    mvels=[mean(t.velocities[:,n]) for n in 1:length(t.functions)]
+    mvels=[mean(t.velocities[:,n]) for n in 1:length(t.inst.funcs)]
     t.tabular_display[!,"Velocity"]=copy(mvels)
 
     any(i->i<0,mvels) && (mvels.+=-minimum(mvels)+1.) #to calculate weights, scale negative values into >1.
-    pvec=[mvels[n]*(sum(t.successes[:,n])/length(t.successes[:,n])) for n in 1:length(t.functions)]
+    pvec=[mvels[n]*(sum(t.successes[:,n])/length(t.successes[:,n])) for n in 1:length(t.inst.funcs)]
     pvec./=sum(pvec)
-    any(i->i<t.minimum_clamp,pvec) && clamp_pvec!(pvec,t.minimum_clamp)
+    (any(pvec.<t.inst.min_clmps) || any(pvec.>t.inst.max_clmps)) && clamp_pvec!(pvec,t.inst.min_clmps,t.inst.max_clmps)
 
     @assert isprobvec(pvec)
-    t.weights=pvec; t.tabular_display[!,"Weights"]=pvec
+    t.inst.weights=pvec; t.tabular_display[!,"Weights"]=pvec
 end
-            function clamp_pvec!(pvec, clamp)
-                clamped=false
-                while !clamped
-                    vals_to_clamp=findall(i->i<clamp, pvec)
-                    vals_to_deplete=findall(i->i>clamp, pvec)
 
-                    depletion=sum([clamp-pvec[val] for val in vals_to_clamp])
-                    pvec[vals_to_clamp].=clamp
+"""
+    clamp_pvec(pvec, tuner)
 
-                    pvec[vals_to_deplete].-=depletion/length(vals_to_deplete)
-                    !any(i->i<clamp,pvec)&&(clamped=true)
+Clamp the values of a probability vector between the minimums and maximums provided by a Permute_Tuner.
+"""
+            function clamp_pvec!(pvec, min_clmps, max_clmps)
+                #logic- first accumulate on low values, then distribute excess from high values
+                any(pvec.<min_clmps) ? (low_clamped=false) : (low_clamped=true)
+                while !low_clamped
+                    vals_to_accumulate=pvec.<min_clmps
+                    vals_to_deplete=pvec.>min_clmps
+
+                    depletion=sum(min_clmps[vals_to_accumulate].-pvec[vals_to_accumulate])
+                    pvec[vals_to_accumulate].=min_clmps[vals_to_accumulate]
+                    pvec[vals_to_deplete].-=depletion/sum(vals_to_deplete)
+
+                    !any(pvec.<min_clmps)&&(low_clamped=true)
+                end
+
+                any(pvec.>max_clmps) ? (high_clamped=false) : (high_clamped=true)
+                while !high_clamped
+                    vals_to_deplete=pvec.>max_clmps
+                    vals_to_accumulate=pvec.<max_clmps
+
+                    depletion=sum(pvec[vals_to_deplete].-max_clmps[vals_to_deplete])
+                    pvec[vals_to_deplete].=max_clmps[vals_to_deplete]
+                    pvec[vals_to_accumulate].+=depletion/sum(vals_to_accumulate)
+
+                    !any(pvec.>max_clmps)&&(high_clamped=true)
                 end
             end
-
-function tune_instruction(tuner::Permute_Tuner, i::Permute_Instruct)
-    return Permute_Instruct(i.funcs, tuner.weights, i.model_limit, i.func_limit, args=i.args)
-end
 
 function Base.show(io::IO, tuner::Permute_Tuner; progress=false)
     show(io, tuner.tabular_display, rowlabel=:I, summary=false)

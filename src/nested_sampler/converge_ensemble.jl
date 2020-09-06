@@ -16,7 +16,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         curr_it += 1
 
         tune_weights!(tuner, step_report)
-        instruction = tune_instruction(tuner, instruction)
+        instruction = tuner.inst
 
         backup[1] && curr_it%backup[2] == 0 && e_backup(e,instruction,tuner) #every backup interval, serialise the ensemble and instruction
         clean[1] &&  !e.sample_posterior && curr_it%clean[2] == 0 && clean_ensemble_dir(e,clean[3]) #every clean interval, remove old discarded models
@@ -71,7 +71,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
                 (@error "All workers failed to find new models, aborting at current iterate."; return e) #if there is a warning, iust return the ensemble and print info
         curr_it += 1
         tune_weights!(tuner, step_report)
-        instruction = tune_instruction(tuner, instruction) 
+        instruction = tuner.inst
         take!(job_chan); put!(job_chan,(e.models,e.contour,instruction))
         backup[1] && curr_it%backup[2] == 0 && e_backup(e,instruction,tuner) #every backup interval, serialise the ensemble and instruction
         clean[1] && !e.sample_posterior && curr_it%clean[2] == 0 && clean_ensemble_dir(e,clean[3]) #every clean interval, remove old discarded models

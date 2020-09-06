@@ -35,7 +35,6 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
     disp_rotate_inst::Vector{Any}
     
     convergence_history::Vector{Float64}
-    time_history::Vector{Float64}
 
     function ProgressNS{T}(    e::IPM_Ensemble,
                                top_m::ICA_PWM_Model,
@@ -89,7 +88,6 @@ mutable struct ProgressNS{T<:Real} <: AbstractProgress
          src_disp,
          nsrcs,
          disp_rotate_inst,
-         zeros(CONVERGENCE_MEMORY),
          zeros(CONVERGENCE_MEMORY))
     end
 end
@@ -105,8 +103,8 @@ function update!(p::ProgressNS, val, thresh; options...)
     p.counter += 1
     
     p.tstp=time()-p.tlast
-    popfirst!(p.time_history)
-    push!(p.time_history, p.tstp)
+    popfirst!(p.tuner.time_history)
+    push!(p.tuner.time_history, p.tstp)
 
     p.interval = val - thresh
     popfirst!(p.convergence_history)
@@ -147,8 +145,8 @@ function updateProgress!(p::ProgressNS; offset::Integer = p.offset, keep = (offs
     end
 
     if t > p.tlast+p.dt && !p.triggered
-        p.counter < CONVERGENCE_MEMORY ? mean_step_time=mean(p.time_history[end-(p.counter-1):end]) :
-                                            mean_step_time=mean(p.time_history)
+        p.counter < CONVERGENCE_MEMORY ? mean_step_time=mean(p.tuner.time_history[end-(p.counter-1):end]) :
+                                            mean_step_time=mean(p.tuner.time_history)
         msg = @sprintf "%s Iterate: %s Recent step time μ: %s Convergence Interval: %g\n" p.desc p.counter hmss(mean_step_time) p.interval
 
         print(p.output, "\n" ^ (p.offset + p.numprintedvalues))

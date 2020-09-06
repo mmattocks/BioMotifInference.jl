@@ -145,7 +145,7 @@ function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
         new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
         clean=Vector{Bool}(trues(O))
 
-        s = popat!(svec,rand(1:S)) #randomly select a source to merge
+        s = popat!(svec,rand(1:length(svec))) #randomly select a source to merge
         merge_s=most_dissimilar(new_mix[:,s],merger_m.mix_matrix)
         
         clean[new_mix[:,s]].=false #mark dirty any obs that start with the source
@@ -176,7 +176,7 @@ function similarity_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Recor
         new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
         clean=Vector{Bool}(trues(O))
 
-        s = popat!(svec,rand(1:S)) #randomly select a source to merge
+        s = popat!(svec,rand(1:length(svec))) #randomly select a source to merge
         merge_s=most_similar(m.mix_matrix[:,s],merger_m.mix_matrix)
 
         clean[m.mix_matrix[:,s]].=false #mark dirty any obs that have the source
