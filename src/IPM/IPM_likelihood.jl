@@ -1,5 +1,5 @@
 #LIKELIHOOD SCORING FUNCS
-function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}, observations::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractArray{<:AbstractFloat}, mix::BitMatrix, revcomp::Bool=true, returncache::Bool=false, cache::AbstractVector{<:AbstractFloat}=zeros(0), clean::AbstractVector{<:Bool}=Vector(falses(size(observations)[2])))
+function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}, observations::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractArray{<:AbstractFloat}, mix::BitMatrix, revcomp::Bool=REVCOMP, returncache::Bool=false, cache::AbstractVector{<:AbstractFloat}=zeros(0), clean::AbstractVector{<:Bool}=Vector(falses(size(observations)[2])))
     source_wmls=[size(source[1])[1] for source in sources]
     O = size(bg_scores)[2]
     source_stops=[obsl-wml+1 for wml in source_wmls, obsl in obs_lengths] #stop scannng th source across the observation as the source reaches the end        

@@ -43,13 +43,14 @@ function consolidate_srcs(con_idxs::Dict{Integer,Vector{Integer}}, m::ICA_PWM_Mo
     return ICA_PWM_Model("candidate","consolidated $(m.origin)", new_sources, m.source_length_limits, new_mix, new_log_Li)
 end
 
-function consolidate_check(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}; thresh=.035)
+function consolidate_check(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}}; thresh=.035, revcomp=REVCOMP)
     pass=true
     lengthδmat=[size(src1[1],1) - size(src2[1],1) for src1 in sources, src2 in sources]
     cons_idxs=Dict{Integer,Vector{Integer}}()
-    for src1 in 1:length(sources)
-        for src2 in src1+1:length(sources)
-            if lengthδmat[src1,src2]==0 && pwm_distance(sources[src1][1],sources[src2][1]) < thresh
+    for src1 in 1:length(sources), src2 in src1+1:length(sources)
+        if lengthδmat[src1,src2]==0
+            revcomp ? (info_condition = (pwm_distance(sources[src1][1],sources[src2][1]) < thresh || pwm_distance(sources[src1][1],revcomp_pwm(sources[src2][1])) < thresh)) : (info_condition = (pwm_distance(sources[src1][1],sources[src2][1]) < thresh))
+            if info_condition
                 if !in(src1,keys(cons_idxs))
                     cons_idxs[src1]=[src2]; pass=false
                 else
