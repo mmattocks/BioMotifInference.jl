@@ -84,7 +84,7 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, new_bl), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function fit_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}; exclude_src::Integer=0, remote=false)
@@ -128,7 +128,7 @@ function random_decorrelate(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate", "RD from $(m.name)", new_sources, m.source_length_limits, new_mix, new_log_Li)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","RD from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate", "RD from $(m.name)", new_sources, m.source_length_limits, new_mix, new_log_Li)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","RD from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function shuffle_sources(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
@@ -154,7 +154,7 @@ function shuffle_sources(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","SS from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","SS from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","SS from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","SS from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function accumulate_mix(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
@@ -187,7 +187,7 @@ function accumulate_mix(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
@@ -216,7 +216,7 @@ function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","DM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","DM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","DM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","DM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function similarity_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
@@ -274,7 +274,7 @@ function reinit_src(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, ob
     end
 
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","RS from $(m.name)", new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","RS from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","RS from $(m.name)", new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","RS from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; info_thresh::AbstractFloat=EROSION_INFO_THRESH, remote=false)
