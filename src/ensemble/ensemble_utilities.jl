@@ -4,16 +4,15 @@ function ensemble_history(e::IPM_Ensemble, bins=25)
     show(histogram(livec, nbins=bins))
 end
 
-function e_backup(e::IPM_Ensemble, instruction::Permute_Instruct, tuner::Permute_Tuner)
+function e_backup(e::IPM_Ensemble, tuner::Permute_Tuner)
     serialize(string(e.path,'/',"ens"), e)
-    serialize(string(e.path,'/',"inst"), instruction)
     serialize(string(e.path,'/',"tuner"), tuner)
 end
 
 function clean_ensemble_dir(e::IPM_Ensemble, model_pad::Integer; ignore_warn=false)
     !ignore_warn && e.sample_posterior && throw(ArgumentError("Ensemble is set to retain posterior samples and its directory should not be cleaned!"))
     for file in readdir(e.path)
-        !(file in vcat([basename(model.path) for model in e.models],"ens","inst",[string(number) for number in e.model_counter-length(e.models)-model_pad:e.model_counter-1])) && rm(e.path*'/'*file)
+        !(file in vcat([basename(model.path) for model in e.models],"ens",[string(number) for number in e.model_counter-length(e.models)-model_pad:e.model_counter-1])) && rm(e.path*'/'*file)
     end
 end
 

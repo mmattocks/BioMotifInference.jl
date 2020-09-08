@@ -3,8 +3,6 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
     log_frac=log(evidence_fraction)
     
     curr_it=length(e.log_Li)
-    curr_it>1 && isfile(e.path*"/inst") && (instruction=deserialize(e.path*"/inst")) #resume from backed up instruction if any
-
     curr_it>1 && isfile(e.path*"/tuner") ? (tuner=deserialize(e.path*"/tuner")) : (tuner = Permute_Tuner(instruction)) #restore tuner from saved if any
     wk_mon = Worker_Monitor([1])
     meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)
@@ -18,7 +16,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         tune_weights!(tuner, step_report)
         instruction = tuner.inst
 
-        backup[1] && curr_it%backup[2] == 0 && e_backup(e,instruction,tuner) #every backup interval, serialise the ensemble and instruction
+        backup[1] && curr_it%backup[2] == 0 && e_backup(e,tuner) #every backup interval, serialise the ensemble and instruction
         clean[1] &&  !e.sample_posterior && curr_it%clean[2] == 0 && clean_ensemble_dir(e,clean[3]) #every clean interval, remove old discarded models
 
         update!(meter,lps(findmax([model.log_Li for model in e.models])[1],  e.log_Xi[end]),lps(log_frac,e.log_Zi[end]))        
@@ -28,13 +26,13 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, evid
         final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
-        e_backup(e,instruction,tuner)
+        e_backup(e,tuner)
         clean[1] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return final_logZ
     elseif curr_it==max_iterates
         @info "Job done, sampled to maximum iterate $max_iterates. Convergence criterion not obtained."
 
-        e_backup(e,instruction,tuner)
+        e_backup(e,tuner)
         clean[1] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return e.log_Zi[end]
     end
@@ -73,7 +71,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         tune_weights!(tuner, step_report)
         instruction = tuner.inst
         take!(job_chan); put!(job_chan,(e.models,e.contour,instruction))
-        backup[1] && curr_it%backup[2] == 0 && e_backup(e,instruction,tuner) #every backup interval, serialise the ensemble and instruction
+        backup[1] && curr_it%backup[2] == 0 && e_backup(e,tuner) #every backup interval, serialise the ensemble and instruction
         clean[1] && !e.sample_posterior && curr_it%clean[2] == 0 && clean_ensemble_dir(e,clean[3]) #every clean interval, remove old discarded models
 
         update!(meter, lps(findmax([model.log_Li for model in e.models])[1], e.log_Xi[end]), lps(log_frac,e.log_Zi[end]))
@@ -85,13 +83,13 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
-        e_backup(e,instruction,tuner)
+        e_backup(e,tuner)
         clean[1] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return final_logZ
     elseif curr_it==max_iterates
         @info "Job done, sampled to maximum iterate $max_iterates. Convergence criterion not obtained."
 
-        e_backup(e,instruction,tuner)
+        e_backup(e,tuner)
         clean[1] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return e.log_Zi[end]
     end
