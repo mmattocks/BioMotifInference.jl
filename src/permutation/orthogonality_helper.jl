@@ -11,9 +11,7 @@ function consolidate_srcs(con_idxs::Dict{Integer,Vector{Integer}}, m::ICA_PWM_Mo
 
         for host_src in filter(!in(vcat(values(con_idxs)...)), keys(con_idxs)) #copy mix information to the source to be consolidated on as host
             for cons_src in con_idxs[host_src]
-                for obs in 1:size(new_mix,1)
-                    new_mix[obs,host_src]=new_mix[obs,host_src] || new_mix[obs,cons_src]
-                end
+                new_mix[:,host_src].=[new_mix[o,host_src] || new_mix[o,cons_src] for o in 1:size(new_mix,1)]
             end
         end
 

@@ -14,7 +14,6 @@ module BioMotifInference
     global PWM_SHIFT_FREQ=.2 #proportion of positions in source to permute weight matrix
     global PWM_LENGTHPERM_FREQ=.2 #proportion of sources to permute length
     global LENGTHPERM_RANGE=1:3
-    global MIN_MIX_PERMFREQ=.0001 #minimum proportion of mix positions to permute in relevant mix perm funcs
     global PRIOR_WT=3. #estimate prior dirichlets from product of this constant and sample "mle" wm
     global PRIOR_LENGTH_MASS=.8
     global EROSION_INFO_THRESH=1.

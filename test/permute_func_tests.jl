@@ -126,42 +126,79 @@
     test_record = Model_Record(path, merger_target.log_Li)
     serialize(path, merger_target)
 
-    dm_model=distance_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000)
+    dm_model=distance_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li)
     @test dm_model.log_Li > merger_base.log_Li
     @test dm_model.sources != merger_base.sources
     distance_dict=Dict(1=>3,2=>1,3=>1)
-    for (n,src) in enumerate(dm_model.sources)
-        @test (dm_model.sources[n]==merger_base.sources[n]) || (dm_model.sources[n]==merger_target.sources[distance_dict[n]])
-    end
+    @test all([src==merger_base.sources[n] || src==merger_target.sources[distance_dict[n]] for (n,src) in enumerate(dm_model.sources)])
     @test "DM from merge" == dm_model.origin
 
-    sm_model=similarity_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000)
+    sm_model=similarity_merge(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li)
     @test sm_model.log_Li > merger_base.log_Li
     @test sm_model.sources != merger_base.sources
-    for (n,src) in enumerate(dm_model.sources)
-        @test (sm_model.sources[n]==merger_base.sources[n]) || (sm_model.sources[n]==merger_target.sources[n])
-    end
+    @test all([src==merger_base.sources[n] || src==merger_target.sources[n] for (n,src) in enumerate(sm_model.sources)])
     @test "SM from merge" == sm_model.origin
+
+    shuffled_model=shuffle_sources(merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li)
+    @test sum(shuffled_model.sources.==merger_base.sources)==length(shuffled_model.sources)-1
+    for (s,src) in enumerate(shuffled_model.sources)
+        @test src==merger_base.sources[s] || src==merger_target.sources[s]
+        if src == merger_base.sources[s]
+            @test shuffled_model.mix_matrix[:,s]==merger_base.mix_matrix[:,s]
+        else
+            @test shuffled_model.mix_matrix[:,s]==merger_target.mix_matrix[:,s]
+        end
+    end
+    @test "SS from merge" == shuffled_model.origin
+
+    acc_base_mix=falses(2,1);acc_base_mix[1,1]=true
+    acc_merge_mix=falses(2,1);acc_merge_mix[2,1]=true
+
+    acc_base=ICA_PWM_Model("accbase", "", [merger_srcs[1]],src_length_limits, acc_base_mix, IPM_likelihood([merger_srcs[1]],obs,obsl, bg_scores, acc_base_mix))
+    acc_merge=ICA_PWM_Model("accmerge", "", [accurate_srcs[1]],src_length_limits, acc_merge_mix, IPM_likelihood([accurate_srcs[1]],obs,obsl, bg_scores, acc_merge_mix))
+
+    accpath=randstring()
+    acc_record = Model_Record(accpath, acc_merge.log_Li)
+    serialize(accpath, acc_merge)
+ 
+    acc_model=accumulate_mix(acc_base, [acc_record], obs, obsl, bg_scores, acc_merge.log_Li)
+    @test acc_model.mix_matrix==trues(2,1)
+    @test acc_model.sources == acc_merge.sources
+    @test "AM from accbase" == acc_model.origin
 
     testwk=addprocs(1)[1]
     @everywhere import BioMotifInference
 
-    ddm_model=remotecall_fetch(distance_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000, remote=true)
+    ddm_model=remotecall_fetch(distance_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, remote=true)
     @test ddm_model.log_Li > merger_base.log_Li
     @test ddm_model.sources != merger_base.sources
-    for (n,src) in enumerate(ddm_model.sources)
-        @test (ddm_model.sources[n]==merger_base.sources[n]) || (ddm_model.sources[n]==merger_target.sources[distance_dict[n]])
-    end
+    @test all([src==merger_base.sources[n] || src==merger_target.sources[distance_dict[n]] for (n,src) in enumerate(ddm_model.sources)])
     @test "DM from merge" == ddm_model.origin
 
-    dsm_model=remotecall_fetch(similarity_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, iterates=1000, remote=true)
+    dsm_model=remotecall_fetch(similarity_merge, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, remote=true)
     @test dsm_model.log_Li > merger_base.log_Li
     @test dsm_model.sources != merger_base.sources
-    for (n,src) in enumerate(dm_model.sources)
-        @test (dsm_model.sources[n]==merger_base.sources[n]) || (dsm_model.sources[n]==merger_target.sources[n])
-    end
+    @test all([src==merger_base.sources[n] || src==merger_target.sources[n] for (n,src) in enumerate(dsm_model.sources)])
     @test "SM from merge" == dsm_model.origin
+
+    dshuffled_model=remotecall_fetch(shuffle_sources, testwk, merger_base, [test_record], obs, obsl, bg_scores, merger_base.log_Li, remote=true)
+    @test sum(dshuffled_model.sources.==merger_base.sources)==length(dshuffled_model.sources)-1
+    for (s,src) in enumerate(dshuffled_model.sources)
+        @test src==merger_base.sources[s] || src==merger_target.sources[s]
+        if src == merger_base.sources[s]
+            @test dshuffled_model.mix_matrix[:,s]==merger_base.mix_matrix[:,s]
+        else
+            @test dshuffled_model.mix_matrix[:,s]==merger_target.mix_matrix[:,s]
+        end
+    end
+    @test "SS from merge" == dshuffled_model.origin
+
+    dacc_model=remotecall_fetch(accumulate_mix, testwk, acc_base, [acc_record], obs, obsl, bg_scores, acc_merge.log_Li)
+    @test dacc_model.mix_matrix==trues(2,1)
+    @test dacc_model.sources == acc_merge.sources
+    @test "AM from accbase" == dacc_model.origin
     
     rmprocs(testwk)
     rm(path)
+    rm(accpath)
 end
