@@ -102,7 +102,7 @@ function fit_mix(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::Abst
         end
     end
     new_mix==m.mix_matrix ? (new_log_Li=-Inf) : (new_log_Li = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, new_mix, true))
-    new_log_Li in [model.log_Li for model in models] && (new_log_Li=-Inf) #an existing identical log_Li is almost certainly a fitted model from another origin, in this case abort to prevent useless dupes
+    new_log_Li in [model.log_Li for model in models] && (new_log_Li=-Inf) #an existing identical log_Li is almost certainly a fitted model from another origin, in this case abort to prevent dupes
 
     return ICA_PWM_Model("candidate","FM from $(m.name)",m.sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check necessary as no change to sources
 end
@@ -160,6 +160,7 @@ end
 function accumulate_mix(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
     new_log_Li=-Inf; T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
+    new_bl=Vector{Function}()
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
 
@@ -186,8 +187,10 @@ function accumulate_mix(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
         end
     end
 
+    (new_log_Li == m.log_Li || new_log_Li in [model.log_Li for model in models]) && (new_log_Li=-Inf) #accumulate can sometimes duplicate models if source mix is identical
+
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li,Vector{Function}())) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","AM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
