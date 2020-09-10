@@ -64,7 +64,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         deleteat!(e.models, least_likely_idx)
         e.sample_posterior && push!(e.retained_posterior_samples, Li_model)#if sampling posterior, push the model record to the ensemble's posterior samples vector
 
-        warn, step_report = nested_step!(e, model_chan, wk_mon, Li_model) #step the ensemble
+        warn, step_report = nested_step!(e, instruction, model_chan, wk_mon, Li_model) #step the ensemble
         warn == 1 && #"1" passed for warn code means no workers persist; all have hit the permute limit
                 (@error "All workers failed to find new models, aborting at current iterate."; return e) #if there is a warning, iust return the ensemble and print info
         curr_it += 1

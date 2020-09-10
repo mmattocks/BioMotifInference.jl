@@ -1,5 +1,5 @@
 #### IMPLEMENTATION OF JEFF SKILLINGS' NESTED SAMPLING ALGORITHM ####
-function nested_step!(e::IPM_Ensemble, permute_instruction::Permute_Instruct)
+function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct)
     N = length(e.models) #number of sample models/particles on the posterior surface
     i = length(e.log_Li) #iterate number, index for last values
     j = i+1 #index for newly pushed values
@@ -15,7 +15,7 @@ function nested_step!(e::IPM_Ensemble, permute_instruction::Permute_Instruct)
     #SELECT NEW MODEL, SAVE TO ENSEMBLE DIRECTORY, CREATE RECORD AND PUSH TO ENSEMBLE
     model_selected=false; step_report=0
     while !model_selected
-        candidate,step_report=permute_IPM(e, permute_instruction)
+        candidate,step_report=permute_IPM(e, instruction)
         if !(candidate===nothing)
             model_selected=true
             new_model_record = Model_Record(string(e.path,'/',e.model_counter), candidate.log_Li);
@@ -23,6 +23,7 @@ function nested_step!(e::IPM_Ensemble, permute_instruction::Permute_Instruct)
             final_model=ICA_PWM_Model(string(e.model_counter), candidate.origin, candidate.sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.permute_blacklist)
             serialize(new_model_record.path, final_model)
             e.model_counter +=1
+            process_step_report(e, final_model, instruction, step_report)
         else
             push!(e.models, Li_model)
             return 1, step_report
@@ -44,7 +45,7 @@ function nested_step!(e::IPM_Ensemble, permute_instruction::Permute_Instruct)
     return 0, step_report
 end
 
-function nested_step!(e::IPM_Ensemble, model_chan::RemoteChannel, wk_mon::Worker_Monitor, Li_model::Model_Record)
+function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct, model_chan::RemoteChannel, wk_mon::Worker_Monitor, Li_model::Model_Record)
     N = length(e.models)+1 #number of sample models/particles on the posterior surface- +1 as one has been removed in the distributed dispatch for converge_ensemble
     i = length(e.log_Li) #iterate number, index for last values
     j = i+1 #index for newly pushed values
@@ -62,6 +63,7 @@ function nested_step!(e::IPM_Ensemble, model_chan::RemoteChannel, wk_mon::Worker
                 final_model=ICA_PWM_Model(string(e.model_counter), candidate.origin, candidate.sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.permute_blacklist)
                 serialize(new_model_record.path, final_model)
                 e.model_counter +=1
+                process_step_report(e, final_model, instruction, step_report)
             end
             update_worker_monitor!(wk_mon,wk,true)
         else
@@ -85,6 +87,7 @@ function nested_step!(e::IPM_Ensemble, model_chan::RemoteChannel, wk_mon::Worker
 
     return 0, step_report
 end
+
 
 #function to handle any misc processing arising from the particular permutes used; right now this just means fit_mix blacklisting the origin of any successful fit_mix
 function process_step_report(e::IPM_Ensemble, m::ICA_PWM_Model, inst::Permute_Instruct, rpt)
