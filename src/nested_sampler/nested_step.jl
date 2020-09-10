@@ -17,13 +17,15 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct)
     while !model_selected
         candidate,step_report=permute_IPM(e, instruction)
         if !(candidate===nothing)
-            model_selected=true
-            new_model_record = Model_Record(string(e.path,'/',e.model_counter), candidate.log_Li);
-            push!(e.models, new_model_record);
-            final_model=ICA_PWM_Model(string(e.model_counter), candidate.origin, candidate.sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.permute_blacklist)
-            serialize(new_model_record.path, final_model)
-            e.model_counter +=1
-            process_step_report(e, final_model, instruction, step_report)
+            if !(candidate.log_Li in [m.log_Li for m in e.models])
+                model_selected=true
+                new_model_record = Model_Record(string(e.path,'/',e.model_counter), candidate.log_Li);
+                push!(e.models, new_model_record);
+                final_model=ICA_PWM_Model(string(e.model_counter), candidate.origin, candidate.sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.permute_blacklist)
+                serialize(new_model_record.path, final_model)
+                e.model_counter +=1
+                process_step_report(e, final_model, instruction, step_report)
+            end
         else
             push!(e.models, Li_model)
             return 1, step_report
@@ -56,7 +58,7 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct, model_chan
         @async wait(model_chan)
         candidate,wk,step_report = take!(model_chan)
         if !(candidate===nothing)
-            if candidate.log_Li > e.contour
+            if (candidate.log_Li > e.contour) && !(candidate.log_Li in [m.log_Li for m in e.models])
                 model_selected=true
                 new_model_record = Model_Record(string(e.path,'/',e.model_counter), candidate.log_Li);
                 push!(e.models, new_model_record);
