@@ -30,7 +30,6 @@ function permute_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs
     new_log_Li=-Inf;  iterate = 1
     T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_mix=falses(size(m.mix_matrix))
-    fit_mix in m.permute_blacklist ? (new_bl=m.permute_blacklist) : (new_bl=Vector{Function}())
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
     dirty=false
@@ -87,7 +86,7 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
     cons_check ? (return ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
-function fit_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}; exclude_src::Integer=0, remote=false)
+function fit_mix(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}; exclude_src::Integer=0, remote=false)
     T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_mix=deepcopy(m.mix_matrix); test_mix=falses(size(m.mix_matrix))
     new_bl=[fit_mix]
@@ -102,7 +101,8 @@ function fit_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs_len
             new_mix[:,s]=fit_mix
         end
     end
-    new_mix==m.mix_matrix ? new_log_Li=-Inf : new_log_Li = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, new_mix, true)
+    new_mix==m.mix_matrix ? (new_log_Li=-Inf) : (new_log_Li = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, new_mix, true))
+    new_log_Li in [model.log_Li for model in models] && (new_log_Li=-Inf) #an existing identical log_Li is almost certainly a fitted model from another origin, in this case abort to prevent useless dupes
 
     return ICA_PWM_Model("candidate","FM from $(m.name)",m.sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check necessary as no change to sources
 end
