@@ -49,8 +49,6 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     @async sequence_workers(wk_pool, permute_IPM, e, job_chan, model_chan)
     
     curr_it=length(e.log_Li)
-    curr_it>1 && isfile(e.path*"/inst") && (instruction=deserialize(e.path*"/inst")) #resume from backed up instruction if any
-
     wk_mon=Worker_Monitor(wk_pool)
     curr_it>1 && isfile(e.path*"/tuner") ? (tuner=deserialize(e.path*"/tuner")) : (tuner = Permute_Tuner(instruction)) #restore tuner from saved if any
     meter = ProgressNS(e, wk_mon, tuner, 0., log_frac; start_it=curr_it, progargs...)

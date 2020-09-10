@@ -40,7 +40,7 @@ function reset_ensemble!(e::IPM_Ensemble)
     new_e.model_counter=length(new_e.models)+1
 
     clean_ensemble_dir(new_e, 0; ignore_warn=true)
-    isfile(e.path*"/inst") && rm(e.path*"/inst")
+    isfile(e.path*"/tuner") && rm(e.path*"/tuner")
     serialize(e.path*"/ens", new_e)
 
     return new_e
