@@ -49,7 +49,7 @@ function permute_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs
         iterate += 1
     end
 
-    return ICA_PWM_Model("candidate","PM from $(m.name)", m.sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check is necessary as sources havent changed
+    return ICA_PWM_Model("candidate","PM from $(m.name)", m.sources, m.source_length_limits, new_mix, new_log_Li, Vector{Function}()) #no consolidate check is necessary as sources havent changed
 end
 
 function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat},contour::AbstractFloat,  source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, length_perm_range::UnitRange{<:Integer}=LENGTHPERM_RANGE,weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, remote=false)

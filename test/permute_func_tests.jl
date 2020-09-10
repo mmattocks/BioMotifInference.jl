@@ -46,7 +46,7 @@
     @test psfm_model.mix_matrix != test_model.mix_matrix
     @test "PSFM from test" == psfm_model.origin
 
-    fm_model=fit_mix(test_model,obs,obsl,bg_scores)
+    fm_model=fit_mix(test_model, Vector{Model_Record}(), obs,obsl,bg_scores)
     @test fm_model.log_Li > test_model.log_Li
     @test fm_model.sources == test_model.sources
     @test fm_model.mix_matrix != test_model.mix_matrix
