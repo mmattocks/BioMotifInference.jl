@@ -45,3 +45,45 @@ function reset_ensemble!(e::IPM_Ensemble)
 
     return new_e
 end
+
+function move_ensemble!(e::IPM_Ensemble,path::String)
+    !isdir(path) && mkdir(path)
+    for file in readdir(e.path)
+        mv(e.path*'/'*file,path*'/'*file)
+    end
+
+    for (n,model) in enumerate(e.models)
+        e.models[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
+    end
+    if e.sample_posterior
+        for (n,model) in enumerate(e.retained_posterior_samples)
+            e.retained_posterior_samples[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
+        end
+    end
+
+    rm(e.path)
+    e.path=path
+    serialize(e.path*"/ens",e)
+    return e
+end
+
+function copy_ensemble!(e::IPM_Ensemble,path::String)
+    new_e=deepcopy(e)
+    !isdir(path) && mkdir(path)
+    for file in readdir(e.path)
+        cp(e.path*'/'*file,path*'/'*file, force=true)
+    end
+
+    for (n,model) in enumerate(e.models)
+        new_e.models[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
+    end
+    if e.sample_posterior
+        for (n,model) in enumerate(e.retained_posterior_samples)
+            new_e.retained_posterior_samples[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
+        end
+    end
+
+    new_e.path=path
+    serialize(new_e.path*"/ens",e)
+    return new_e
+end

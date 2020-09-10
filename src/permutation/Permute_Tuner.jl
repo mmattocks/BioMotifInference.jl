@@ -31,7 +31,7 @@ end
 """
     tune_weights!(tuner, call_report)
 
-Given a call_report from permute_IPM(), adjust tuner's Permute_Instruct weights on the basis of function success and likelihood surface velocity.
+Given a call_report from permute_IPM(), adjust tuner's Permute_Instruct weights for function success rate and likelihood surface velocity.
 """
 function tune_weights!(tuner::Permute_Tuner, call_report::Vector{Tuple{Int64,Float64,Float64}})
     for call in call_report
