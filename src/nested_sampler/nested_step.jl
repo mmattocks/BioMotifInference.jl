@@ -24,7 +24,6 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct)
                 final_model=ICA_PWM_Model(string(e.model_counter), candidate.origin, candidate.sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.permute_blacklist)
                 serialize(new_model_record.path, final_model)
                 e.model_counter +=1
-                process_step_report(e, final_model, instruction, step_report)
             end
         else
             push!(e.models, Li_model)
@@ -65,7 +64,6 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct, model_chan
                 final_model=ICA_PWM_Model(string(e.model_counter), candidate.origin, candidate.sources, candidate.source_length_limits, candidate.mix_matrix, candidate.log_Li, candidate.permute_blacklist)
                 serialize(new_model_record.path, final_model)
                 e.model_counter +=1
-                process_step_report(e, final_model, instruction, step_report)
             end
             update_worker_monitor!(wk_mon,wk,true)
         else
@@ -88,16 +86,4 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct, model_chan
             -e.log_Zi[j])) #term3
 
     return 0, step_report
-end
-
-
-#function to handle any misc processing arising from the particular permutes used; right now this just means fit_mix blacklisting the origin of any successful fit_mix
-function process_step_report(e::IPM_Ensemble, m::ICA_PWM_Model, inst::Permute_Instruct, rpt)
-    funcidx=rpt[end][1]
-    if inst.funcs[funcidx]==fit_mix
-        ori=split(m.origin)[end]
-        origin=deserialize(e.path*'/'*ori)
-        new_origin=ICA_PWM_Model(origin.name, origin.origin, origin.sources, origin.source_length_limits, origin.mix_matrix, origin.log_Li, push!(origin.permute_blacklist,fit_mix))
-        serialize(e.path*'/'*ori,new_origin)
-    end
 end
