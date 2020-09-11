@@ -61,7 +61,7 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
     while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
         new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix); tm_one=deepcopy(m.mix_matrix);
         clean=Vector{Bool}(trues(O))
-        s = rand(1:S); 
+        s = rand(1:S);
         clean[new_mix[:,s]].=false #all obs starting with source are dirty
 
         new_mix[:,s].=false;tm_one[:,s].=true
@@ -71,8 +71,16 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
 
         l,zero_cache=IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
         l,one_cache=IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, tm_one, true, true)
-
         fit_mix=one_cache.>=zero_cache
+
+        if REVCOMP #if we're looking at reverse strands, we want to see if sources fit better on the reverse strand, and if so switch over to the revcomp source and use its fitted mix
+            revsrc=(revcomp_pwm(new_sources[s][1]),new_sources[s][2])
+            revsrcs=deepcopy(new_sources)
+            revsrcs[s]=revsrc
+            l, revsrc_cache=IPM_likelihood(revsrcs, obs_array, obs_lengths, bg_scores, tm_one, true, true)
+            rfit_mix=revsrc_cache.>=zero_cache
+            lps(revsrc_cache[rfit_mix])>lps(one_cache[fit_mix]) && (new_sources=revsrcs;fit_mix=rfit_mix) #if the total likelihood contribution for the revsource fit is greater than the source fit, take the revsource
+        end
 
         new_mix[:,s]=fit_mix
 
@@ -86,25 +94,33 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
     cons_check ? (return ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","PSFM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
-function fit_mix(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}; exclude_src::Integer=0, remote=false)
+function fit_mix(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}; remote=false)
     T,O = size(obs_array); T=T-1; S = length(m.sources)
-    new_mix=deepcopy(m.mix_matrix); test_mix=falses(size(m.mix_matrix))
+    new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix); test_mix=falses(size(m.mix_matrix))
     new_bl=[fit_mix]
 
     l,zero_cache=IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, test_mix, true, true)
     for (s,source) in enumerate(m.sources)
-        if s!=exclude_src
-            test_mix=falses(size(m.mix_matrix))
-            test_mix[:,s].=true
-            l,src_cache=IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, test_mix, true, true)
-            fit_mix=src_cache.>=zero_cache
-            new_mix[:,s]=fit_mix
-        end
-    end
-    new_mix==m.mix_matrix ? (new_log_Li=-Inf) : (new_log_Li = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, new_mix, true))
-    new_log_Li in [model.log_Li for model in models] && (new_log_Li=-Inf) #an existing identical log_Li is almost certainly a fitted model from another origin, in this case abort to prevent dupes
+        test_mix=falses(size(m.mix_matrix))
+        test_mix[:,s].=true
+        l,src_cache=IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, test_mix, true, true)
+        fit_mix=src_cache.>=zero_cache
 
-    return ICA_PWM_Model("candidate","FM from $(m.name)",m.sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check necessary as no change to sources
+        if REVCOMP #if we're looking at reverse strands, we want to see if sources fit better on the reverse strand, and if so switch over to the revcomp source and use its fitted mix
+            revsrc=(revcomp_pwm(source[1]),source[2])
+            revsrcs=deepcopy(new_sources)
+            revsrcs[s]=revsrc
+            l, revsrc_cache=IPM_likelihood(revsrcs, obs_array, obs_lengths, bg_scores, test_mix, true, true)
+            rfit_mix=revsrc_cache.>=zero_cache
+            lps(revsrc_cache[rfit_mix])>lps(src_cache[fit_mix]) && (new_sources=revsrcs;fit_mix=rfit_mix) #if the total likelihood contribution for the revsource fit is greater than the source fit, take the revsource
+        end
+
+        new_mix[:,s]=fit_mix
+    end
+    new_mix==m.mix_matrix ? (new_log_Li=-Inf) : (new_log_Li = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, new_mix, true)) #bail if the mix matrix doesnt change
+    new_log_Li in [model.log_Li for model in models] && (new_log_Li=-Inf) #an existing identical log_Li is almost certainly a fitted model from another origin with the same sources, in this case abort to prevent dupes
+
+    return ICA_PWM_Model("candidate","FM from $(m.name)",new_sources, m.source_length_limits, new_mix, new_log_Li, new_bl) #no consolidate check necessary as no change to sources
 end
 
 function random_decorrelate(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, mix_move_range::UnitRange=1:size(m.mix_matrix,1), remote=false)
