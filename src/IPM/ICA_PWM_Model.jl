@@ -123,7 +123,7 @@ function Base.show(io::IO, m::ICA_PWM_Model; nsrc::Integer=length(m.sources), pr
     end
     println(m.origin)
     
-    progress && return(nsrc+5)
+    progress && return(nsrc+4)
 end
 
 function sort_sources(m, nsrc)
