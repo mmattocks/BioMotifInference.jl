@@ -87,3 +87,15 @@ function copy_ensemble!(e::IPM_Ensemble,path::String)
     serialize(new_e.path*"/ens",e)
     return new_e
 end
+
+function show_models(e::IPM_Ensemble,idxs)
+    liperm=sortperm([model.log_Li for model in e.models],rev=true)
+    for idx in idxs
+        m=deserialize(e.models[liperm[idx]].path)
+        show(m)
+    end
+end
+
+function get_model(e::IPM_Ensemble,no)
+    return deserialize(e.path*'/'*string(no))
+end

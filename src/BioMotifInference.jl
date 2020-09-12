@@ -35,7 +35,7 @@ module BioMotifInference
     export Permute_Instruct
     include("permutation/Permute_Tuner.jl")
     include("ensemble/ensemble_utilities.jl")
-    export ensemble_history, reset_ensemble!, move_ensemble!, copy_ensemble!
+    export ensemble_history, reset_ensemble!, move_ensemble!, copy_ensemble!, get_model, show_models
     include("utilities/model_display.jl")
     include("utilities/worker_diagnostics.jl")
     include("utilities/ns_progressmeter.jl")

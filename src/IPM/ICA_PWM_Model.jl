@@ -121,8 +121,9 @@ function Base.show(io::IO, m::ICA_PWM_Model; nsrc::Integer=length(m.sources), pr
         pwmstr_to_io(io, printsrcs[src])
         println(io)
     end
-
-    progress && return(nsrc+3)
+    println(m.origin)
+    
+    progress && return(nsrc+5)
 end
 
 function sort_sources(m, nsrc)
