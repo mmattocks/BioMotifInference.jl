@@ -84,7 +84,7 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
         wait(job_chan)
         start=time()
         e.models, e.contour, instruction = fetch(job_chan)
-        instruction === nothing && (persist=false) && break
+        instruction == "stop" && (persist=false) && break
 
         call_report=Vector{Tuple{Int64,Float64,Float64}}()
         for model=1:instruction.model_limit
@@ -116,7 +116,7 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
             model_ctr+=1
             wait(job_chan)
             fetch(job_chan)!=e.models && (break) #if the ensemble has changed during the search, update it
-			model==instruction.model_limit && (put!(models_chan, (nothing, id, call_report));persist=false)#worker to put nothing on channel if it fails to find a model more likely than contour
+			model==instruction.model_limit && (put!(models_chan, ("quit", id, call_report));persist=false)#worker to put "quit" on channel if it fails to find a model more likely than contour
 		end
 	end
 end

@@ -46,7 +46,7 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct)
     return 0, step_report
 end
 
-function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct, model_chan::RemoteChannel, wk_mon::Worker_Monitor, Li_model::Model_Record)
+function nested_step!(e::IPM_Ensemble, model_chan::RemoteChannel, wk_mon::Worker_Monitor, Li_model::Model_Record)
     N = length(e.models)+1 #number of sample models/particles on the posterior surface- +1 as one has been removed in the distributed dispatch for converge_ensemble
     i = length(e.log_Li) #iterate number, index for last values
     j = i+1 #index for newly pushed values
@@ -56,7 +56,7 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct, model_chan
     while !model_selected
         @async wait(model_chan)
         candidate,wk,step_report = take!(model_chan)
-        if !(candidate===nothing)
+        if !(candidate=="quit")
             if (candidate.log_Li > e.contour) && !(candidate.log_Li in [m.log_Li for m in e.models])
                 model_selected=true
                 new_model_record = Model_Record(string(e.path,'/',e.model_counter), candidate.log_Li);
