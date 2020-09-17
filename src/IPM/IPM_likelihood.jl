@@ -7,7 +7,7 @@ function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:Abstr
 
     obs_src_idxs=mix_pull_idxs(mix) #get vectors of sources emitting in each obs
 
-    revcomp ? (srcs=[cat(source[1],revcomp_pwm(source[1]),dims=3) for source in sources]; motif_expectations = [(0.5/obsl) for obsl in obs_lengths]; mat_dim=2) : (srcs=[source[1] for source in sources]; ; motif_expectations = [(1/obsl) for obsl in obs_lengths]; mat_dim=1) #setup appropriate reverse complemented sources if necessary and set log_motif_expectation-nMica has 0.5 per base for including the reverse complement, 1 otherwise
+    revcomp ? (srcs=[cat(source[1],revcomp_pwm(source[1]),dims=3) for source in sources]; motif_expectations = [((MOTIF_EXPECT/2)/obsl) for obsl in obs_lengths]; mat_dim=2) : (srcs=[source[1] for source in sources]; ; motif_expectations = [(MOTIF_EXPECT/obsl) for obsl in obs_lengths]; mat_dim=1) #setup appropriate reverse complemented sources if necessary and set log_motif_expectation-nMica has 0.5 per base for including the reverse complement, 1 otherwise
 
     lme_vec=zeros(length(sources))
 

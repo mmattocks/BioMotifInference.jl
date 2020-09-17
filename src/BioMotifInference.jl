@@ -8,16 +8,26 @@ module BioMotifInference
     import Distances: euclidean
 
     #CONSTANTS AND PERMUTE FUNCTION ARGUMENT DEFAULTS GIVING RISE TO IMPLEMENTATION-SPECIFIC SAMPLING EFFECTS
+    global MOTIF_EXPECT=1. #motif expectation- this value to be divided by obs lengths to obtain penalty factor for scoring
+
     global REVCOMP=true #calculate scores on both strands? 
+
     global TUNING_MEMORY=20 #coefficient multiplied by Permute_Instruct function call limit to give total number of calls remembered by tuner per function
     global CONVERGENCE_MEMORY=500 #number of iterates to display for convergence interval history
+
+    global SRC_PERM_FREQ=.5 #frequency with which random_decorrelate will permute a source
+
     global PWM_SHIFT_DIST=Weibull(.5,.1) #distribution of weight matrix permutation magnitudes
     global PWM_SHIFT_FREQ=.2 #proportion of positions in source to permute weight matrix
     global PWM_LENGTHPERM_FREQ=.2 #proportion of sources to permute length
     global LENGTHPERM_RANGE=1:3
+
     global PRIOR_WT=3. #estimate prior dirichlets from product of this constant and sample "mle" wm
     global PRIOR_LENGTH_MASS=.8
+
     global EROSION_INFO_THRESH=1.
+
+    global CONSOLIDATE_THRESH=.035
     
     include("IPM/ICA_PWM_Model.jl")
     export Model_Record
