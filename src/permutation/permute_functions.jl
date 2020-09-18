@@ -4,7 +4,7 @@
 function permute_source(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, length_perm_range::UnitRange{<:Integer}=LENGTHPERM_RANGE, remote=false) 
 #weight_shift_dist is given in decimal probability values- converted to log space in permute_source_lengths!
     new_log_Li=-Inf;  iterate = 1
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    O = size(obs_array,2);S = length(m.sources)
     new_sources=deepcopy(m.sources);
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
@@ -27,8 +27,7 @@ function permute_source(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_arra
 end
 
 function permute_mix(m::ICA_PWM_Model, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; iterates::Integer=10, mix_move_range::UnitRange=1:length(m.mix_matrix), remote=false) 
-    new_log_Li=-Inf;  iterate = 1
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_log_Li=-Inf;  iterate = 1; O = size(obs_array,2);
     new_mix=falses(size(m.mix_matrix))
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
@@ -54,7 +53,7 @@ end
 
 function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat},contour::AbstractFloat,  source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, length_perm_range::UnitRange{<:Integer}=LENGTHPERM_RANGE,weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, remote=false)
     new_log_Li=-Inf;  iterate = 1
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
     fit_mix in m.permute_blacklist ? (new_bl=m.permute_blacklist) : (new_bl=Vector{Function}())
 
@@ -95,7 +94,6 @@ function perm_src_fit_mix(m::ICA_PWM_Model,  models::Vector{Model_Record}, obs_a
 end
 
 function fit_mix(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}; remote=false)
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix); test_mix=falses(size(m.mix_matrix))
     new_bl=[fit_mix]
 
@@ -125,7 +123,7 @@ end
 
 function random_decorrelate(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, source_permute_freq::AbstractFloat=SRC_PERM_FREQ, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, mix_move_range::UnitRange=1:size(m.mix_matrix,1), remote=false)
     new_log_Li=-Inf;  iterate = 1
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
 
     a, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
@@ -133,7 +131,7 @@ function random_decorrelate(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_
     while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
         new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
         clean=Vector{Bool}(trues(O))
-        s = rand(1:length(m.sources))
+        s = rand(1:S)
         clean[new_mix[:,s]].=false #all obs starting with source are dirty
         rand() < source_permute_freq && (new_sources[s]=permute_source_weights(new_sources[s], weight_shift_freq, weight_shift_dist))
         rand() < length_change_freq && (new_sources[s]=permute_source_length(new_sources[s], source_priors[s], m.source_length_limits))
@@ -148,7 +146,7 @@ function random_decorrelate(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_
 end
 
 function shuffle_sources(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
-    new_log_Li=-Inf; T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_log_Li=-Inf; O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
@@ -174,7 +172,7 @@ function shuffle_sources(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record
 end
 
 function accumulate_mix(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
-    new_log_Li=-Inf; T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_log_Li=-Inf; O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
     new_bl=Vector{Function}()
 
@@ -210,7 +208,7 @@ function accumulate_mix(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
 end
 
 function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
-    new_log_Li=-Inf; T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_log_Li=-Inf; O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
 
     a, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, new_mix, true, true)
@@ -239,7 +237,7 @@ function distance_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}
 end
 
 function similarity_merge(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
-    new_log_Li=-Inf; T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_log_Li=-Inf; O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources)
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
@@ -266,7 +264,7 @@ end
 
 function reinit_src(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat},contour::AbstractFloat, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, remote=false)
     new_log_Li=-Inf;  iterate = 1
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    O = size(obs_array,2); S = length(m.sources)
     new_sources=deepcopy(m.sources); new_mix=deepcopy(m.mix_matrix)
 
     while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or exceed iterates
@@ -297,14 +295,13 @@ function reinit_src(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, ob
 end
 
 function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; info_thresh::AbstractFloat=EROSION_INFO_THRESH, remote=false)
-    new_log_Li=-Inf;  iterate = 1
-    T,O = size(obs_array); T=T-1; S = length(m.sources)
+    new_log_Li=-Inf; O = size(obs_array,2);
     new_sources=deepcopy(m.sources)
 
-    erosion_sources=Set{Integer}()
+    erosion_sources=Vector{Integer}()
     for (s,src) in enumerate(m.sources)
         pwm,pi=src
-        if size(pwm,1)>m.source_length_limits[1]
+        if size(pwm,1)>m.source_length_limits[1]  #do not consider eroding srcs at min length limit
             infovec=get_pwm_info(pwm)
             any(info-><(info, info_thresh),infovec) && push!(erosion_sources,s)
         end
@@ -316,13 +313,12 @@ function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, o
 
     while new_log_Li <= contour && length(erosion_sources) > 0 #until we produce a model more likely than the lh contour or there are no more sources to erode
         clean=Vector{Bool}(trues(O))
-        s=pop!(erosion_sources)
+        s=popat!(erosion_sources,rand(1:length(erosion_sources)))
 
         new_sources[s]=erode_source(new_sources[s], m.source_length_limits, info_thresh)
         clean[m.mix_matrix[:,s]].=false
 
         new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true, cache, clean) #assess likelihood
-        iterate += 1
     end
 
     new_log_Li <= contour ? (blacklist=[erode_model]) : (blacklist=Vector{Function}())
@@ -331,4 +327,35 @@ function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, o
     cons_check ? (return ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
-full_perm_funcvec=[permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, shuffle_sources, accumulate_mix, distance_merge, similarity_merge, reinit_src, erode_model]
+function info_fill(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; iterates::Integer=length(m.sources)*3, remote=false)
+    new_log_Li=-Inf; O = size(obs_array,2); S = length(m.sources); iterate=1
+    new_sources=deepcopy(m.sources)
+
+    a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
+
+    while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or there are no more sources to erode
+        new_sources=deepcopy(m.sources)
+        clean=Vector{Bool}(trues(O))
+        s=rand(1:S); pwm=new_sources[s][1]
+        fill_idx=findmin(get_pwm_info(pwm))[2]
+        fill_bases=[1,2,3,4]
+        fill_candidate=findmax(pwm[fill_idx,:])[2]
+        deleteat!(fill_bases, findfirst(b->b==fill_candidate,fill_bases))
+        new_sources[s][1][fill_idx,:].=-Inf; new_sources[s][1][fill_idx,fill_candidate]=0.
+        clean[m.mix_matrix[:,s]].=false
+        new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true, cache, clean) #assess likelihood
+
+        while new_log_Li <=contour && length(fill_bases)>0
+            fill_candidate=popat!(fill_bases,rand(1:length(fill_bases)))
+            new_sources[s][1][fill_idx,:].=-Inf; new_sources[s][1][fill_idx,fill_candidate]=0.
+            new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true, cache, clean) #assess likelihood
+        end
+
+        iterate+=1
+    end
+
+    cons_check, cons_idxs = consolidate_check(new_sources)
+    cons_check ? (return ICA_PWM_Model("candidate","IF from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","IF from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+end
+
+full_perm_funcvec=[permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, shuffle_sources, accumulate_mix, distance_merge, similarity_merge, reinit_src, erode_model, info_fill]

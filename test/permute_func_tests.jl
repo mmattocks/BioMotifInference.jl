@@ -91,26 +91,26 @@
     @test dbl_eroded.permute_blacklist == [erode_model]
 
 
-    merger_srcs=   [([.1 .7 .1 .1
+    merger_srcs=   [(log.([.1 .7 .1 .1
     .1 .7 .1 .1
-    .15 .35 .35 .15],
+    .15 .35 .35 .15]),
     1
     ),
-    ([.1 .7 .1 .1
-        .1 .65 .6 .1
-        .1 .7 .1 .1],
+    (log.([.1 .7 .1 .1
+        .1 .65 .15 .1
+        .1 .7 .1 .1]),
         1
     ),
-    ([.1 .7 .1 .1
+    (log.([.1 .7 .1 .1
         .1 .7 .1 .1
         .1 .7 .1 .1
-        .7 .1 .1 .1],
+        .7 .1 .1 .1]),
         1
     )]
 
-    accurate_srcs=[ ([0.93 0.04 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02], 1),
-    ([0.94 0.02 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02], 1),
-    ([0.95 0.01 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02], 1)]
+    accurate_srcs=[ (log.([0.90 0.06 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02]), 1),
+    (log.([0.94 0.02 0.02 0.02; 0.02 0.07 0.07 0.84; 0.02 0.02 0.94 0.02]), 1),
+    (log.([0.95 0.01 0.02 0.02; 0.02 0.02 0.02 0.94; 0.02 0.02 0.94 0.02]), 1)]
 
     merger_mix = BitMatrix([true false false
     true true false])
@@ -197,7 +197,11 @@
     @test dacc_model.mix_matrix==trues(2,1)
     @test dacc_model.sources == acc_merge.sources
     @test "AM from accbase" == dacc_model.origin
-    
+
+    info_base=ICA_PWM_Model("info_base", "", [accurate_srcs[1]], src_length_limits, accurate_mix[:,1:1], IPM_likelihood([accurate_srcs[1]],obs,obsl,bg_scores,accurate_mix[:,1:1]))
+    info_model=info_fill(info_base,Vector{Model_Record}(),obs,obsl,bg_scores,info_base.log_Li)
+    @test info_model.sources[1][1][1,:] == [0., -Inf, -Inf, -Inf]
+
     rmprocs(testwk)
     rm(path)
     rm(accpath)

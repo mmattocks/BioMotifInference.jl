@@ -12,12 +12,19 @@ struct ICA_PWM_Model #Independent component analysis position weight matrix mode
     log_Li::AbstractFloat
     permute_blacklist::Vector{Function} #blacklist of functions that ought not be used to permute this model (eg. because to do so would not generate a different model for IPMs produced from fitting the mix matrix)
     function ICA_PWM_Model(name, origin, sources, source_length_limits, mix_matrix, log_Li, permute_blacklist=Vector{Function}())
+        verify_srcs(name, origin, sources)
         new(name, origin, sources, source_length_limits, mix_matrix, log_Li, permute_blacklist)
     end
 end
 
 #ICA_PWM_Model FUNCTIONS
 ICA_PWM_Model(name::String, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer}) = init_IPM(name, source_priors,mix_prior,bg_scores,observations,source_length_limits)
+
+function verify_srcs(name, ori, sources::Vector{<:Tuple{<:AbstractMatrix{<:AbstractFloat},<:Integer}})
+    for (n,(pwm,pi)) in enumerate(sources)
+        !all(isprobvec(exp.(pwm[pos,:])) for pos in 1:size(pwm,1)) && throw(DomainError("Bad probvec in model $name, source $n, origin $(ori):$(exp.(pwm))"))
+    end
+end
 
 #MODEL INIT
 function init_IPM(name::String, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},<:Bool}}, mix_prior::Tuple{BitMatrix,<:AbstractFloat}, bg_scores::AbstractArray{<:AbstractFloat}, observations::AbstractArray{<:Integer}, source_length_limits::UnitRange{<:Integer})
