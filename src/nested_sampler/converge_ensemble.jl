@@ -40,18 +40,19 @@ end
 function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_pool::Vector{Int64}; max_iterates=typemax(Int64), backup::Tuple{Bool,Integer}=(false,0), clean::Tuple{Bool,Integer,Integer}=(false,0,0), verbose::Bool=false, converge_criterion::String="standard", converge_factor::AbstractFloat=.001, progargs...)
     N = length(e.models)
     
-    model_chan= RemoteChannel(()->Channel{Tuple{Union{ICA_PWM_Model,String},Integer, AbstractVector{<:Tuple}}}(10*length(wk_pool))) #channel to take EM iterates off of
-    job_chan = RemoteChannel(()->Channel{Tuple{<:AbstractVector{<:Model_Record}, Float64, Union{Permute_Instruct,String}}}(1))
-    put!(job_chan,(e.models, e.contour, instruction))
+    converge_check = get_convfunc(converge_criterion)
+    if !converge_check #set up for convergence and sequence workers if not already converged
+        model_chan= RemoteChannel(()->Channel{Tuple{Union{ICA_PWM_Model,String},Integer, AbstractVector{<:Tuple}}}(10*length(wk_pool))) #channel to take EM iterates off of
+        job_chan = RemoteChannel(()->Channel{Tuple{<:AbstractVector{<:Model_Record}, Float64, Union{Permute_Instruct,String}}}(1))
+        put!(job_chan,(e.models, e.contour, instruction))    
+        @async sequence_workers(wk_pool, permute_IPM, e, job_chan, model_chan)
+    end
 
-    @async sequence_workers(wk_pool, permute_IPM, e, job_chan, model_chan)
-    
     curr_it=length(e.log_Li)
     wk_mon=Worker_Monitor(wk_pool)
     curr_it>1 && isfile(e.path*"/tuner") ? (tuner=deserialize(e.path*"/tuner")) : (tuner = Permute_Tuner(instruction)) #restore tuner from saved if any
     meter = ProgressNS(e, wk_mon, tuner, 0.; start_it=curr_it, progargs...)
 
-    converge_check = get_convfunc(converge_criterion)
     while !converge_check(e, converge_factor) && (curr_it <= max_iterates)
 
         #REMOVE OLD LEAST LIKELY MODEL - perform here to spare all workers the same calculations
