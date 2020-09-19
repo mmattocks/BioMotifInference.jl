@@ -90,16 +90,21 @@ end
 
 function rewind_ensemble(e::IPM_Ensemble,rewind_idx)
     !e.sample_posterior && throw(ArgumentError("An ensemble not retaining posterior samples cannot be rewound!"))
-    idx=length(e.log_Li)+length(e.models)-1
-    rewind_idx >= idx && throw(ArgumentError("rewind_idx must be less than the current iterate!"))
+    rewind_idx >= length(e.log_Li) && throw(ArgumentError("rewind_idx must be less than the current iterate!"))
+
+    n=length(e.models)
+    max_model_no=length(e.log_Li)+length(e.models)-1
+    rewind_model_no=rewind_idx+length(e.models)-1
     new_e = deepcopy(e)
 
-    while idx > rewind_idx+length(e.models)-1
-        model_idx=findfirst(n->n==string(idx),[basename(model.path) for model in new_e.models])
-        popat!(new_e.models, model_idx)
+    rm_models=[string(name) for name in rewind_model_no+1:max_model_no]
+
+    filter!(model->!(basename(model.path) in rm_models),new_e.models)
+    filter!(model->!(basename(model.path) in rm_models),new_e.retained_posterior_samples)
+
+    while length(new_e.models) < n
         push!(new_e.models,pop!(new_e.retained_posterior_samples))
     end
-    
     new_e.contour=new_e.log_Li[rewind_idx]
     new_e.log_Li=new_e.log_Li[1:rewind_idx]
     new_e.log_Xi=new_e.log_Xi[1:rewind_idx]
