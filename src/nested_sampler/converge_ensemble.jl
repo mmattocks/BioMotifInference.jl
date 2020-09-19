@@ -41,10 +41,11 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     N = length(e.models)
     
     converge_check = get_convfunc(converge_criterion)
-    if !converge_check #set up for convergence and sequence workers if not already converged
-        model_chan= RemoteChannel(()->Channel{Tuple{Union{ICA_PWM_Model,String},Integer, AbstractVector{<:Tuple}}}(10*length(wk_pool))) #channel to take EM iterates off of
-        job_chan = RemoteChannel(()->Channel{Tuple{<:AbstractVector{<:Model_Record}, Float64, Union{Permute_Instruct,String}}}(1))
-        put!(job_chan,(e.models, e.contour, instruction))    
+    model_chan= RemoteChannel(()->Channel{Tuple{Union{ICA_PWM_Model,String},Integer, AbstractVector{<:Tuple}}}(10*length(wk_pool))) #channel to take EM iterates off of
+    job_chan = RemoteChannel(()->Channel{Tuple{<:AbstractVector{<:Model_Record}, Float64, Union{Permute_Instruct,String}}}(1))
+    put!(job_chan,(e.models, e.contour, instruction))    
+    
+    if !converge_check(e,converge_factor) #sequence workers only if not already converged
         @async sequence_workers(wk_pool, permute_IPM, e, job_chan, model_chan)
     end
 
