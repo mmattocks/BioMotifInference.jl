@@ -201,6 +201,8 @@
     info_base=ICA_PWM_Model("info_base", "", [accurate_srcs[1]], src_length_limits, accurate_mix[:,1:1], IPM_likelihood([accurate_srcs[1]],obs,obsl,bg_scores,accurate_mix[:,1:1]))
     info_model=info_fill(info_base,Vector{Model_Record}(),obs,obsl,bg_scores,info_base.log_Li)
     @test info_model.sources[1][1][1,:] == [0., -Inf, -Inf, -Inf]
+    @test info_model.log_Li > info_base.log_Li
+    @test "IF from info_base" == info_model.origin
 
     rmprocs(testwk)
     rm(path)

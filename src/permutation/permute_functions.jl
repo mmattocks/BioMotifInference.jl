@@ -327,16 +327,19 @@ function erode_model(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, o
     cons_check ? (return ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","EM from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
-function info_fill(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; iterates::Integer=length(m.sources)*3, remote=false)
+function info_fill(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat; remote=false)
     new_log_Li=-Inf; O = size(obs_array,2); S = length(m.sources); iterate=1
     new_sources=deepcopy(m.sources)
 
     a, cache = IPM_likelihood(m.sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true)
 
-    while new_log_Li <= contour && iterate <= iterates #until we produce a model more likely than the lh contour or there are no more sources to erode
+    svec=[1:S...]
+
+    while new_log_Li <= contour && length(svec)>0 #until we produce a model more likely than the lh contour or no more sources to attempt infofill
         new_sources=deepcopy(m.sources)
         clean=Vector{Bool}(trues(O))
-        s=rand(1:S); pwm=new_sources[s][1]
+        s = popat!(svec,rand(1:length(svec))) #randomly select a source to merge
+        pwm=new_sources[s][1]
         fill_idx=findmin(get_pwm_info(pwm))[2]
         fill_bases=[1,2,3,4]
         fill_candidate=findmax(pwm[fill_idx,:])[2]
@@ -350,12 +353,12 @@ function info_fill(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs
             new_sources[s][1][fill_idx,:].=-Inf; new_sources[s][1][fill_idx,fill_candidate]=0.
             new_log_Li, cache = IPM_likelihood(new_sources, obs_array, obs_lengths, bg_scores, m.mix_matrix, true, true, cache, clean) #assess likelihood
         end
-
-        iterate+=1
     end
 
+    new_log_Li <= contour ? (blacklist=[info_fill]) : (blacklist=Vector{Function}())
+
     cons_check, cons_idxs = consolidate_check(new_sources)
-    cons_check ? (return ICA_PWM_Model("candidate","IF from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","IF from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
+    cons_check ? (return ICA_PWM_Model("candidate","IF from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist)) : (return consolidate_srcs(cons_idxs, ICA_PWM_Model("candidate","IF from $(m.name)",new_sources, m.source_length_limits, m.mix_matrix, new_log_Li, blacklist), obs_array, obs_lengths, bg_scores, contour, models; remote=remote))
 end
 
 full_perm_funcvec=[permute_source, permute_mix, perm_src_fit_mix, fit_mix, random_decorrelate, shuffle_sources, accumulate_mix, distance_merge, similarity_merge, reinit_src, erode_model, info_fill]
