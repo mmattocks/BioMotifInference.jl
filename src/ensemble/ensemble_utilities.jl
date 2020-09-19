@@ -16,6 +16,10 @@ function clean_ensemble_dir(e::IPM_Ensemble, model_pad::Integer; ignore_warn=fal
     end
 end
 
+function complete_evidence(e::IPM_Ensemble)
+    return final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
+end
+
 function reset_ensemble!(e::IPM_Ensemble)
     new_e=deepcopy(e)
     for i in 1:length(e.models)

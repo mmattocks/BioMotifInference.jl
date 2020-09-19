@@ -22,7 +22,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct; max_
     end
 
     if converge_check(e,converge_factor)
-        final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
+        final_logZ = complete_evidence(e)
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
         e_backup(e,tuner)
@@ -77,7 +77,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
     take!(job_chan); put!(job_chan, (e.models, e.contour, "stop")) #stop instruction terminates worker functions
 
     if converge_check(e,converge_factor)
-        final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
+        final_logZ = complete_evidence(e)
         @info "Job done, sampled to convergence. Final logZ $final_logZ"
 
         e_backup(e,tuner)
