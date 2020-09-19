@@ -108,7 +108,7 @@ function rewind_ensemble(e::IPM_Ensemble,rewind_idx)
     new_e.log_Zi=new_e.log_Zi[1:rewind_idx]
     new_e.Hi=new_e.Hi[1:rewind_idx]
 
-    new_e.model_counter=length(new_e.models)+rewind_idx+1
+    new_e.model_counter=length(new_e.models)+rewind_idx
 
     return new_e
 end
