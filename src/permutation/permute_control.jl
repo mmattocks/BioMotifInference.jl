@@ -84,7 +84,7 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
         wait(job_chan)
         start=time()
         e.models, e.contour, instruction = fetch(job_chan)
-        instruction == "stop" && (persist=false) && break
+        instruction == "stop" && (persist=false; break)
 
         call_report=Vector{Tuple{Int64,Float64,Float64}}()
         for model=1:instruction.model_limit

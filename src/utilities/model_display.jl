@@ -26,7 +26,7 @@ scale_factor = 0.9
 ypixels_per_source = 250
 ypad = 10
 xpad = 20
-xpixels_per_position = 20
+xpixels_per_position = 40
 fontsize1=60
 fontsize2=40
 
