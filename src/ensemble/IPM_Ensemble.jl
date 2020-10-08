@@ -149,7 +149,7 @@ function Base.show(io::IO, e::IPM_Ensemble; nsrc=0, progress=false)
 	livec=[model.log_Li for model in e.models]
 	maxLH=maximum(livec)
 	printstyled(io, "ICA PWM Model Ensemble @ $(e.path)\n", bold=true)
-	msg = @sprintf "Contour: %3.3e MaxLH:%3.3e Max/Naive:%3.3e log Evidence:%3.3e" e.contour maxLH (maxLH-e.naive_lh) e.log_Zi[end]
+	msg = @sprintf "Contour: %3.6e MaxLH:%3.3e Max/Naive:%3.3e log Evidence:%3.6e" e.contour maxLH (maxLH-e.naive_lh) e.log_Zi[end]
 	println(io, msg)
 	hist=UnicodePlots.histogram(livec, title="Ensemble Likelihood Distribution")
 	show(io, hist)
