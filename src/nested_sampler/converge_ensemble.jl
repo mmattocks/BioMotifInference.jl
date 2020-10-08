@@ -60,7 +60,7 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct, wk_p
         e.contour, least_likely_idx = findmin([model.log_Li for model in e.models])
         Li_model = e.models[least_likely_idx]
         deleteat!(e.models, least_likely_idx)
-        e.sample_posterior && push!(e.retained_posterior_samples, Li_model)#if sampling posterior, push the model record to the ensemble's posterior samples vector
+        e.sample_posterior && push!(e.posterior_samples, Li_model)#if sampling posterior, push the model record to the ensemble's posterior samples vector
 
         warn, step_report = nested_step!(e, model_chan, wk_mon, Li_model) #step the ensemble
         warn == 1 && #"1" passed for warn code means no workers persist; all have hit the permute limit

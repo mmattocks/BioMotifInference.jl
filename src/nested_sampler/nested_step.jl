@@ -10,7 +10,7 @@ function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct)
     Li_model = e.models[least_likely_idx]
     deleteat!(e.models, least_likely_idx)
 
-    e.sample_posterior && push!(e.retained_posterior_samples, Li_model)#if sampling posterior, push the model record to the ensemble's posterior samples vector
+    e.sample_posterior && push!(e.posterior_samples, Li_model)#if sampling posterior, push the model record to the ensemble's posterior samples vector
 
     #SELECT NEW MODEL, SAVE TO ENSEMBLE DIRECTORY, CREATE RECORD AND PUSH TO ENSEMBLE
     model_selected=false; step_report=0

@@ -1,6 +1,6 @@
 function ensemble_history(e::IPM_Ensemble, bins=25)
     !e.sample_posterior && throw(ArgumentError("This ensemble has no posterior samples to show a history for!"))
-    livec=vcat([model.log_Li for model in e.models],[model.log_Li for model in e.retained_posterior_samples])
+    livec=vcat([model.log_Li for model in e.models],[model.log_Li for model in e.posterior_samples])
     show(histogram(livec, nbins=bins))
 end
 
@@ -26,7 +26,7 @@ function reset_ensemble!(e::IPM_Ensemble)
         if string(i) in [basename(record.path) for record in e.models]
             new_e.models[i]=e.models[findfirst(isequal(string(i)), [basename(record.path) for record in e.models])]
         else
-            new_e.models[i]=e.retained_posterior_samples[findfirst(isequal(string(i)), [basename(record.path) for record in e.retained_posterior_samples])]
+            new_e.models[i]=e.posterior_samples[findfirst(isequal(string(i)), [basename(record.path) for record in e.posterior_samples])]
         end
     end
 
@@ -39,7 +39,7 @@ function reset_ensemble!(e::IPM_Ensemble)
     new_e.log_Zi=[new_e.log_Zi[1]]
     new_e.Hi=[new_e.Hi[1]]
 
-    new_e.retained_posterior_samples=Vector{Model_Record}()
+    new_e.posterior_samples=Vector{Model_Record}()
 
     new_e.model_counter=length(new_e.models)+1
 
@@ -60,8 +60,8 @@ function move_ensemble!(e::IPM_Ensemble,path::String)
         e.models[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
     end
     if e.sample_posterior
-        for (n,model) in enumerate(e.retained_posterior_samples)
-            e.retained_posterior_samples[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
+        for (n,model) in enumerate(e.posterior_samples)
+            e.posterior_samples[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
         end
     end
 
@@ -82,8 +82,8 @@ function copy_ensemble!(e::IPM_Ensemble,path::String)
         new_e.models[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
     end
     if e.sample_posterior
-        for (n,model) in enumerate(e.retained_posterior_samples)
-            new_e.retained_posterior_samples[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
+        for (n,model) in enumerate(e.posterior_samples)
+            new_e.posterior_samples[n]=Model_Record(path*'/'*basename(model.path), model.log_Li)
         end
     end
 
@@ -104,10 +104,10 @@ function rewind_ensemble(e::IPM_Ensemble,rewind_idx)
     rm_models=[string(name) for name in rewind_model_no+1:max_model_no]
 
     filter!(model->!(basename(model.path) in rm_models),new_e.models)
-    filter!(model->!(basename(model.path) in rm_models),new_e.retained_posterior_samples)
+    filter!(model->!(basename(model.path) in rm_models),new_e.posterior_samples)
 
     while length(new_e.models) < n
-        push!(new_e.models,pop!(new_e.retained_posterior_samples))
+        push!(new_e.models,pop!(new_e.posterior_samples))
     end
     new_e.contour=new_e.log_Li[rewind_idx]
     new_e.log_Li=new_e.log_Li[1:rewind_idx]

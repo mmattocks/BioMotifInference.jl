@@ -19,7 +19,7 @@ mutable struct IPM_Ensemble
 	bg_scores::Matrix{AbstractFloat} #precalculated background HMM scores, same dims as obs
 
 	sample_posterior::Bool
-	retained_posterior_samples::Vector{Model_Record} #list of posterior sample records
+	posterior_samples::Vector{Model_Record} #list of posterior sample records
 
 	model_counter::Integer
 
