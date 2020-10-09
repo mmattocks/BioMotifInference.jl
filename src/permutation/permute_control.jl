@@ -78,7 +78,6 @@ end
 function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::RemoteChannel, comms_chan::RemoteChannel) #ensemble.models is partially updated on the worker to populate arguments for permute funcs
 	persist=true
     id=myid()
-    model_ctr=1
     put!(comms_chan,id)
     while persist
         wait(job_chan)
@@ -109,11 +108,10 @@ function permute_IPM(e::IPM_Ensemble, job_chan::RemoteChannel, models_chan::Remo
                     filteridxs, filtered_funcs, filtered_weights, filtered_args = filter_permutes(instruction, model_blacklist)
                 end
 
-                dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; model_ctr=1; break)
+                dupecheck(new_m,m) && new_m.log_Li > e.contour && ((put!(models_chan, (new_m ,id, call_report))); found=true; break)
                 
 			end
             found==true && break;
-            model_ctr+=1
             wait(job_chan)
             fetch(job_chan)!=e.models && (break) #if the ensemble has changed during the search, update it
 			model==instruction.model_limit && (put!(models_chan, ("quit", id, call_report));persist=false)#worker to put "quit" on channel if it fails to find a model more likely than contour
