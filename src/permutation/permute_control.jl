@@ -31,22 +31,6 @@ function assert_permute_instruct(funcs,weights,args,model_limit,func_limit,min_c
     return true
 end
 
-
-#permutation routine function- 
-#general logic: receive array of permutation parameters, until a model more likely than the least is found:
-#randomly select a model from the ensemble (the least likely having been removed by this point), then sample new models by permuting with each of hte given parameter sets until a model more likely than the current contour is found
-#if none is found for the candidate model, move on to another candidate until the models_to_permute iterate is reached, after which return nothing for an error code
-
-#four permutation modes: source (iterative random changes to sources until model lh>contour or iterate limit reached)
-#						-(iterates, weight shift freq per source base, length change freq per source, weight_shift_dist (a ContinuousUnivariateDistribution)) for permute params
-#						mix (iterative random changes to mix matrix as above)
-#						-(iterates, unitrange of # of moves)
-#						init (iteratively reinitialize sources from priors)
-#						-(iterates) for init params
-#						merge (iteratively copy a source + mix matrix row from another model in the ensemble until lh>contour or iterate						limit reached)
-#						-(iterates) for merpge params
-
-
 function permute_IPM(e::IPM_Ensemble, instruction::Permute_Instruct)
     call_report=Vector{Tuple{Int64,Float64,Float64}}()
 	for model = 1:instruction.model_limit

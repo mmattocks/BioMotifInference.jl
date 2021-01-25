@@ -88,7 +88,7 @@ function copy_ensemble!(e::IPM_Ensemble,path::String)
     end
 
     new_e.path=path
-    serialize(new_e.path*"/ens",e)
+    serialize(new_e.path*"/ens",new_e)
     return new_e
 end
 

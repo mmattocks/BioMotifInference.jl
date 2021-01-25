@@ -1,6 +1,4 @@
 #DECORRELATION SEARCH PATTERNS
-
-
 function permute_source(m::ICA_PWM_Model, models::Vector{Model_Record}, obs_array::AbstractMatrix{<:Integer}, obs_lengths::AbstractVector{<:Integer}, bg_scores::AbstractMatrix{<:AbstractFloat}, contour::AbstractFloat, source_priors::AbstractVector{<:Union{<:AbstractVector{<:Dirichlet{<:AbstractFloat}},Bool}}; iterates::Integer=length(m.sources)*2, weight_shift_freq::AbstractFloat=PWM_SHIFT_FREQ, weight_shift_dist::Distributions.ContinuousUnivariateDistribution=PWM_SHIFT_DIST, length_change_freq::AbstractFloat=PWM_LENGTHPERM_FREQ, length_perm_range::UnitRange{<:Integer}=LENGTHPERM_RANGE, remote=false) 
 #weight_shift_dist is given in decimal probability values- converted to log space in permute_source_lengths!
     new_log_Li=-Inf;  iterate = 1
@@ -338,7 +336,7 @@ function info_fill(m::ICA_PWM_Model, models::AbstractVector{<:Model_Record}, obs
     while new_log_Li <= contour && length(svec)>0 #until we produce a model more likely than the lh contour or no more sources to attempt infofill
         new_sources=deepcopy(m.sources)
         clean=Vector{Bool}(trues(O))
-        s = popat!(svec,rand(1:length(svec))) #randomly select a source to merge
+        s = popat!(svec,rand(1:length(svec)))
         pwm=new_sources[s][1]
         fill_idx=findmin(get_pwm_info(pwm))[2]
         fill_bases=[1,2,3,4]
