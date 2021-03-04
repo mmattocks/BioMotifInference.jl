@@ -4,7 +4,7 @@
 [![Project Status: WIP – Initial development is in progress, but there has not yet been a stable, usable release suitable for the public.](https://www.repostatus.org/badges/latest/inactive.svg)](https://www.repostatus.org/#inactive)
 
 BioMotifInference.jl implements nested sampling of ensembles of Independent Component Analysis (ICA) models. These are composed of Position Weight Matrix (PWM) DNA motif signals emitting on a background Hidden Markov Model of genomic noise (BHMM). It is intended for Distributed.jl cluster use, although smaller problems can be solved on one machine. BHMMs can be trained using [BioBackgroundModels.jl](https://github.com/mmattocks/BioBackgroundModels.jl). BioMotifInference.jl is similar to nMICA, implemented by Down and Hubbard in Java in 2004 (Down, T. A., and Tim J.P. Hubbard. “NestedMICA: Sensitive Inference of over-Represented Motifs in Nucleic Acid Sequence.” Nucleic Acids Research 33, no. 5 (March 8, 2005): 1445–53. https://doi.org/10.1093/nar/gki282.
-).
+). It can be, but is not necessarily, in detailed balance; the user specifies the sampling routine from a library of permute functions, and can write new ones, and so is responsible for ensuring that the sampler behaves appropriately for the application.
 
 # Installation
 
