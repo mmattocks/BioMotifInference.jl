@@ -22,9 +22,9 @@ function converge_ensemble!(e::IPM_Ensemble, instruction::Permute_Instruct; max_
     end
 
     if converge_check(e,converge_factor)
-        final_logZ = complete_evidence(e)
-        @info "Job done, sampled to convergence. Final logZ $final_logZ"
-
+        final_logZ = measure_evidence(e)
+        @info "Job done, sampled to convergence. Final logZ $(final_logZ.val) ± $(final_logZ.err)"
+        
         e_backup(e,tuner)
         clean[1] && !e.sample_posterior && clean_ensemble_dir(e,0) #final clean
         return final_logZ

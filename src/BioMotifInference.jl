@@ -6,6 +6,7 @@ module BioMotifInference
     import StatsFuns: logaddexp, logsumexp #both are needed as logsumexp for two terms is deprecated
     import Random: rand, seed!, shuffle!
     import Distances: euclidean
+    import Measurements: measurement
 
     #CONSTANTS AND PERMUTE FUNCTION ARGUMENT DEFAULTS GIVING RISE TO IMPLEMENTATION-SPECIFIC SAMPLING EFFECTS
     global MOTIF_EXPECT=1. #motif expectation- this value to be divided by obs lengths to obtain penalty factor for scoring

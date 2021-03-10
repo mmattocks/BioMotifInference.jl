@@ -17,7 +17,27 @@ function clean_ensemble_dir(e::IPM_Ensemble, model_pad::Integer; ignore_warn=fal
 end
 
 function complete_evidence(e::IPM_Ensemble)
-    return final_logZ = logaddexp(e.log_Zi[end], (logsumexp([model.log_Li for model in e.models]) +  e.log_Xi[length(e.log_Li)] - log(length(e.models))))
+    log_Z=e.log_Zi[end]
+    H=e.Hi[end]
+    live_weight=lps(e.log_Xi[length(e.log_Li)], -log(length(e.models)))
+    lis=sort([model.log_Li for model in e.models])
+    liwis=sort(lps.(lis, live_weight))
+
+    for (li,liwi) in zip(lis,liwis)
+        last_Z=log_Z
+        log_Z=logaddexp(log_Z,liwi)
+        H=lps( 
+            (exp(lps(liwi,-log_Z)) * li), 
+            (exp(lps(last_Z,-log_Z)) * lps(H,last_Z)),
+            -log_Z)
+    end
+
+    return log_Z, H
+end
+
+function measure_evidence(e::IPM_Ensemble)
+    log_Z, H = complete_evidence(e)
+    return measurement(log_Z,sqrt(abs(H)/length(e.models)))
 end
 
 function reset_ensemble!(e::IPM_Ensemble)
