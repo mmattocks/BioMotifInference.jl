@@ -32,10 +32,10 @@ IPM_Ensemble(
 	path,
 	assemble_IPMs(path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
 	[-Inf], #L0 = 0
-	[0], #ie exp(0) = all of the prior is covered
+	[0], #X0 = 1
 	[-Inf], #w0 = 0
 	[-Inf], #Liwi0 = 0
-	[-1e300], #Z0 = 0
+	[-Inf], #Z0 = 0
 	[0], #H0 = 0,
 	obs,
 	[findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]],
@@ -52,10 +52,10 @@ IPM_Ensemble(
 	path,
 	distributed_IPM_assembly(worker_pool, path, no_models, source_priors, mix_prior, bg_scores, obs, source_length_limits)...,
 	[-Inf], #L0 = 0
-	[0], #ie exp(0) = all of the prior is covered
+	[0], #X0 = 1
 	[-Inf], #w0 = 0
 	[-Inf], #Liwi0 = 0
-	[-1e300], #Z0 = 0
+	[-Inf], #Z0 = 0
 	[0], #H0 = 0,
 	obs,
 	[findfirst(iszero,obs[:,o])-1 for o in 1:size(obs)[2]],

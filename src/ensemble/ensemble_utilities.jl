@@ -5,6 +5,7 @@ function ensemble_history(e::IPM_Ensemble, bins=25)
 end
 
 function e_backup(e::IPM_Ensemble, tuner::Permute_Tuner)
+    cp(string(e.path,'/',"ens"),string(e.path,'/',"ens.bak"), force=true)
     serialize(string(e.path,'/',"ens"), e)
     serialize(string(e.path,'/',"tuner"), tuner)
 end
@@ -152,4 +153,41 @@ end
 
 function get_model(e::IPM_Ensemble,no)
     return deserialize(e.path*'/'*string(no))
+end
+
+function reestimate_ensemble!(e::IPM_Ensemble, wi_mode="trapezoidal")
+    Ni=Int64.(round.(collect(-1:-1:-length(e.log_Li)+1)./e.log_Xi[2:end]))
+    insert!(Ni,1,Ni[1])
+
+    #fix any borked starting values
+    e.log_Li[1]=-Inf #L0 = 0
+	e.log_Xi[1]=0. #X0 = 1
+	e.log_wi[1]=-Inf #w0 = 0
+	e.log_Liwi[1]=-Inf #Liwi0 = 0
+	e.log_Zi[1]=-Inf #Z0 = 0
+	e.Hi[1]=0. #H0 = 0,
+
+    for i in 1:length(e.log_Li)-1
+        j=i+1
+
+        e.log_Li[j]=e.posterior_samples[i].log_Li
+
+        e.log_Xi[j]=-i/Ni[i]
+
+        if wi_mode=="trapezoidal"
+            e.log_wi[j]= logsubexp(e.log_Xi[i], -j/Ni[j]) - log(2) #log width of prior mass spanned by the last step-trapezoidal approx
+        elseif wi_mode=="simple"
+            e.log_wi[j]= logsubexp(e.log_Xi[i], e.log_Xi[j]) #log width of prior mass spanned by the last step-simple approx
+        else
+            throw(ArgumentError("Unsupported wi_mode!"))
+        end
+        e.log_Liwi[j]=lps(e.log_Li[j],e.log_wi[j]) #log likelihood + log width = increment of evidence spanned by iterate
+        e.log_Zi[j]=logaddexp(e.log_Zi[i],e.log_Liwi[j])    #log evidence
+        #information- dimensionless quantity
+        Hj=lps( 
+            (exp(lps(e.log_Liwi[j],-e.log_Zi[j])) * e.log_Li[j]), 
+            (exp(lps(e.log_Zi[i],-e.log_Zi[j])) * lps(e.Hi[i],e.log_Zi[i])),
+            -e.log_Zi[j])
+        Hj === -Inf ? (e.Hi[j]=0.) : (e.Hi[j]=Hj)
+    end
 end

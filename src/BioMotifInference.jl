@@ -3,7 +3,7 @@ module BioMotifInference
     import DataFrames:DataFrame
     import ProgressMeter: AbstractProgress, Progress, @showprogress, next!, move_cursor_up_while_clearing_lines, printover, durationstring
     import Printf: @sprintf
-    import StatsFuns: logaddexp, logsumexp #both are needed as logsumexp for two terms is deprecated
+    import StatsFuns: logaddexp, logsumexp, logsubexp
     import Random: rand, seed!, shuffle!
     import Distances: euclidean
     import Measurements: measurement
@@ -46,7 +46,7 @@ module BioMotifInference
     export Permute_Instruct
     include("permutation/Permute_Tuner.jl")
     include("ensemble/ensemble_utilities.jl")
-    export ensemble_history, reset_ensemble!, move_ensemble!, copy_ensemble!, rewind_ensemble, complete_evidence, get_model, show_models
+    export ensemble_history, reset_ensemble!, move_ensemble!, copy_ensemble!, rewind_ensemble, complete_evidence, get_model, show_models, reestimate_ensemble!
     include("utilities/model_display.jl")
     include("utilities/worker_diagnostics.jl")
     include("utilities/ns_progressmeter.jl")
