@@ -1,4 +1,4 @@
-#### IMPLEMENTATION OF JEFF SKILLINGS' NESTED SAMPLING ALGORITHM ####
+#### IMPLEMENTATION OF JOHN SKILLINGS' NESTED SAMPLING ALGORITHM ####
 function nested_step!(e::IPM_Ensemble, instruction::Permute_Instruct)
     N = length(e.models) #number of sample models/particles on the posterior surface
     i = length(e.log_Li) #iterate number, index for last values

@@ -157,7 +157,7 @@ end
 
 function reestimate_ensemble!(e::IPM_Ensemble, wi_mode="trapezoidal")
     Ni=Int64.(round.(collect(-1:-1:-length(e.log_Li)+1)./e.log_Xi[2:end]))
-    insert!(Ni,1,Ni[1])
+    push!(Ni, length(e.models))
 
     #fix any borked starting values
     e.log_Li[1]=-Inf #L0 = 0

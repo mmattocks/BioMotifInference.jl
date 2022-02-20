@@ -7,7 +7,7 @@ function IPM_likelihood(sources::AbstractVector{<:Tuple{<:AbstractMatrix{<:Abstr
 
     obs_src_idxs=mix_pull_idxs(mix) #get vectors of sources emitting in each obs
 
-    revcomp ? (srcs=[cat(source[1],revcomp_pwm(source[1]),dims=3) for source in sources]; motif_expectations = [((MOTIF_EXPECT/2)/obsl) for obsl in obs_lengths]; mat_dim=2) : (srcs=[source[1] for source in sources]; ; motif_expectations = [(MOTIF_EXPECT/obsl) for obsl in obs_lengths]; mat_dim=1) #setup appropriate reverse complemented sources if necessary and set log_motif_expectation-nMica has 0.5 per base for including the reverse complement, 1 otherwise
+    revcomp ? (srcs=[cat(source[1],revcomp_pwm(source[1]),dims=3) for source in sources]; motif_expectations = [((MOTIF_EXPECT/2)/obsl) for obsl in obs_lengths]; mat_dim=2) : (srcs=[source[1] for source in sources]; ; motif_expectations = [(MOTIF_EXPECT/obsl) for obsl in obs_lengths]; mat_dim=1) #setup appropriate reverse complemented sources if necessary and set log_motif_expectation-nMica has 0.5 per obs for including the reverse complement, 1 otherwise
 
     lme_vec=zeros(length(sources))
 
@@ -107,7 +107,7 @@ end
                 end
 
                 @inline function weave_scores_ds!(weavevec, lh_vec, obsl::Integer, bg_scores::SubArray, score_mat::AbstractVector{<:AbstractMatrix{<:AbstractFloat}}, obs_source_indices::AbstractVector{<:Integer}, source_wmls::AbstractVector{<:Integer}, log_motif_expectation::AbstractFloat, cardinality_penalty::AbstractFloat, osi_emitting)
-                    for i in 2:obsl+1 #i=1 is ithe lh_vec initializing 0, i=2 is the score of the first background position (ie t=1)
+                    for i in 2:obsl+1 #i=1 is the lh_vec initializing 0, i=2 is the score of the first background position (ie t=1)
                         t=i-1
                         score = lps(lh_vec[i-1], bg_scores[t], cardinality_penalty)
                 

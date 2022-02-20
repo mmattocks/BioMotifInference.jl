@@ -105,10 +105,6 @@ end
                     return char,color
                 end
 
-
-
-
-
 function print_weightvec_at_x_y(wvec, xpos, ypos, xlen, yscale)
     # xlen is the length occupied by that column
     # yscale is the total height for 2 information bits i.e. the
